@@ -80,7 +80,8 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 	process.on('SIGINT', cleanup);
 	process.on('SIGTERM', cleanup);
 
-	// Hide cursor for cleaner display
+	// Setup terminal for live updates
+	terminal.enterAlternateScreen();
 	terminal.hideCursor();
 
 	// Create live monitor with efficient data loading
@@ -111,8 +112,7 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 				continue;
 			}
 
-			// Clear screen and render
-			terminal.clearScreen();
+			// Render display - alternate screen buffer reduces flicker
 			renderLiveDisplay(terminal, activeBlock, config);
 
 			// Wait before next refresh
