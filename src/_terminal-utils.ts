@@ -40,6 +40,24 @@ export class TerminalManager {
 	}
 
 	/**
+	 * Enters alternate screen buffer (like vim/less)
+	 */
+	enterAlternateScreen(): void {
+		if (this.stream.isTTY) {
+			this.stream.write('\u001B[?1049h');
+		}
+	}
+
+	/**
+	 * Exits alternate screen buffer and restores original screen
+	 */
+	exitAlternateScreen(): void {
+		if (this.stream.isTTY) {
+			this.stream.write('\u001B[?1049l');
+		}
+	}
+
+	/**
 	 * Clears the entire screen and moves cursor to top-left corner
 	 * Essential for live monitoring displays that need to refresh completely
 	 */
@@ -89,6 +107,7 @@ export class TerminalManager {
 	 */
 	cleanup(): void {
 		this.showCursor();
+		this.exitAlternateScreen();
 	}
 }
 
