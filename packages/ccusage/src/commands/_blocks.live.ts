@@ -9,7 +9,7 @@
 import type { LiveMonitoringConfig } from '../_live-rendering.ts';
 import process from 'node:process';
 import pc from 'picocolors';
-import { MIN_RENDER_INTERVAL_MS } from '../_consts.ts';
+import { logger, MIN_RENDER_INTERVAL_MS } from '@ccusage/core';
 import { LiveMonitor } from '../_live-monitor.ts';
 import {
 	delayWithAbort,
@@ -17,7 +17,6 @@ import {
 	renderWaitingState,
 } from '../_live-rendering.ts';
 import { TerminalManager } from '../_terminal-utils.ts';
-import { logger } from '../logger.ts';
 
 export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise<void> {
 	const terminal = new TerminalManager();

@@ -6,17 +6,15 @@
  * Provides frame rate limiting, display rendering, and layout functions.
  */
 
-import type { SessionBlock } from './_session-blocks.ts';
+import type { CostMode, SessionBlock, SortOrder } from '@ccusage/core';
 import type { TerminalManager } from './_terminal-utils.ts';
-import type { CostMode, SortOrder } from './_types.ts';
 import { delay } from '@jsr/std__async/delay';
 import * as ansiEscapes from 'ansi-escapes';
 import pc from 'picocolors';
 import prettyMs from 'pretty-ms';
 import stringWidth from 'string-width';
-import { calculateBurnRate, projectBlockUsage } from './_session-blocks.ts';
+import { calculateBurnRate, formatCurrency, formatModelsDisplay, formatNumber, projectBlockUsage } from '@ccusage/core';
 import { centerText, createProgressBar } from './_terminal-utils.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber } from './_utils.ts';
 
 /**
  * Live monitoring configuration

@@ -1,27 +1,34 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { sharedCommandConfig } from '../_shared-args.ts';
-import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
 	calculateTotals,
 	createTotalsObject,
+	detectMismatches,
+	formatCurrency,
+	formatDateCompact,
+	formatModelsDisplayMultiline,
+	formatNumber,
 	getTotalTokens,
-} from '../calculate-cost.ts';
-import { formatDateCompact, loadDailyUsageData } from '../data-loader.ts';
-import { detectMismatches, printMismatchReport } from '../debug.ts';
-import { log, logger } from '../logger.ts';
+	loadSessionData,
+	log,
+	logger,
+	printMismatchReport,
+	pushBreakdownRows,
+	ResponsiveTable
+} from '@ccusage/core';
+import { sharedCommandConfig } from '../_shared-args.ts';
 
-export const dailyCommand = define({
-	name: 'daily',
-	description: 'Show usage report grouped by date',
+export const sessionCommand = define({
+	name: 'session',
+	description: 'Show usage report grouped by conversation session',
 	...sharedCommandConfig,
 	async run(ctx) {
 		if (ctx.values.json) {
 			logger.level = 0;
 		}
 
-		const dailyData = await loadDailyUsageData({
+		const sessionData = await loadSessionData({
 			since: ctx.values.since,
 			until: ctx.values.until,
 			mode: ctx.values.mode,
@@ -29,7 +36,7 @@ export const dailyCommand = define({
 			offline: ctx.values.offline,
 		});
 
-		if (dailyData.length === 0) {
+		if (sessionData.length === 0) {
 			if (ctx.values.json) {
 				log(JSON.stringify([]));
 			}
@@ -40,7 +47,7 @@ export const dailyCommand = define({
 		}
 
 		// Calculate totals
-		const totals = calculateTotals(dailyData);
+		const totals = calculateTotals(sessionData);
 
 		// Show debug information if requested
 		if (ctx.values.debug && !ctx.values.json) {
@@ -51,14 +58,15 @@ export const dailyCommand = define({
 		if (ctx.values.json) {
 			// Output JSON format
 			const jsonOutput = {
-				daily: dailyData.map(data => ({
-					date: data.date,
+				sessions: sessionData.map(data => ({
+					sessionId: data.sessionId,
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
 					cacheCreationTokens: data.cacheCreationTokens,
 					cacheReadTokens: data.cacheReadTokens,
 					totalTokens: getTotalTokens(data),
 					totalCost: data.totalCost,
+					lastActivity: data.lastActivity,
 					modelsUsed: data.modelsUsed,
 					modelBreakdowns: data.modelBreakdowns,
 				})),
@@ -68,12 +76,12 @@ export const dailyCommand = define({
 		}
 		else {
 			// Print header
-			logger.box('Claude Code Token Usage Report - Daily');
+			logger.box('Claude Code Token Usage Report - By Session');
 
 			// Create table with compact mode support
 			const table = new ResponsiveTable({
 				head: [
-					'Date',
+					'Session',
 					'Models',
 					'Input',
 					'Output',
@@ -81,6 +89,7 @@ export const dailyCommand = define({
 					'Cache Read',
 					'Total Tokens',
 					'Cost (USD)',
+					'Last Activity',
 				],
 				style: {
 					head: ['cyan'],
@@ -94,14 +103,16 @@ export const dailyCommand = define({
 					'right',
 					'right',
 					'right',
+					'left',
 				],
 				dateFormatter: formatDateCompact,
 				compactHead: [
-					'Date',
+					'Session',
 					'Models',
 					'Input',
 					'Output',
 					'Cost (USD)',
+					'Last Activity',
 				],
 				compactColAligns: [
 					'left',
@@ -109,15 +120,20 @@ export const dailyCommand = define({
 					'right',
 					'right',
 					'right',
+					'left',
 				],
 				compactThreshold: 100,
 			});
 
-			// Add daily data
-			for (const data of dailyData) {
+			let maxSessionLength = 0;
+			for (const data of sessionData) {
+				const sessionDisplay = data.sessionId.split('-').slice(-2).join('-'); // Display last two parts of session ID
+
+				maxSessionLength = Math.max(maxSessionLength, sessionDisplay.length);
+
 				// Main row
 				table.push([
-					data.date,
+					sessionDisplay,
 					formatModelsDisplayMultiline(data.modelsUsed),
 					formatNumber(data.inputTokens),
 					formatNumber(data.outputTokens),
@@ -125,16 +141,19 @@ export const dailyCommand = define({
 					formatNumber(data.cacheReadTokens),
 					formatNumber(getTotalTokens(data)),
 					formatCurrency(data.totalCost),
+					data.lastActivity,
 				]);
 
 				// Add model breakdown rows if flag is set
 				if (ctx.values.breakdown) {
-					pushBreakdownRows(table, data.modelBreakdowns);
+					// Session has 1 extra column before data and 1 trailing column
+					pushBreakdownRows(table, data.modelBreakdowns, 1, 1);
 				}
 			}
 
 			// Add empty row for visual separation before totals
 			table.push([
+				'',
 				'',
 				'',
 				'',
@@ -155,6 +174,7 @@ export const dailyCommand = define({
 				pc.yellow(formatNumber(totals.cacheReadTokens)),
 				pc.yellow(formatNumber(getTotalTokens(totals))),
 				pc.yellow(formatCurrency(totals.totalCost)),
+				'',
 			]);
 
 			log(table.toString());

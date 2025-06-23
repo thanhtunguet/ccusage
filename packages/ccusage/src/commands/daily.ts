@@ -2,26 +2,33 @@ import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
 	calculateTotals,
 	createTotalsObject,
+	detectMismatches,
+	formatCurrency,
+	formatDateCompact,
+	formatModelsDisplayMultiline,
+	formatNumber,
 	getTotalTokens,
-} from '../calculate-cost.ts';
-import { formatDateCompact, loadMonthlyUsageData } from '../data-loader.ts';
-import { detectMismatches, printMismatchReport } from '../debug.ts';
-import { log, logger } from '../logger.ts';
+	loadDailyUsageData,
+	log,
+	logger,
+	printMismatchReport,
+	pushBreakdownRows,
+	ResponsiveTable,
+} from '@ccusage/core';
 
-export const monthlyCommand = define({
-	name: 'monthly',
-	description: 'Show usage report grouped by month',
+export const dailyCommand = define({
+	name: 'daily',
+	description: 'Show usage report grouped by date',
 	...sharedCommandConfig,
 	async run(ctx) {
 		if (ctx.values.json) {
 			logger.level = 0;
 		}
 
-		const monthlyData = await loadMonthlyUsageData({
+		const dailyData = await loadDailyUsageData({
 			since: ctx.values.since,
 			until: ctx.values.until,
 			mode: ctx.values.mode,
@@ -29,20 +36,9 @@ export const monthlyCommand = define({
 			offline: ctx.values.offline,
 		});
 
-		if (monthlyData.length === 0) {
+		if (dailyData.length === 0) {
 			if (ctx.values.json) {
-				const emptyOutput = {
-					monthly: [],
-					totals: {
-						inputTokens: 0,
-						outputTokens: 0,
-						cacheCreationTokens: 0,
-						cacheReadTokens: 0,
-						totalTokens: 0,
-						totalCost: 0,
-					},
-				};
-				log(JSON.stringify(emptyOutput, null, 2));
+				log(JSON.stringify([]));
 			}
 			else {
 				logger.warn('No Claude usage data found.');
@@ -51,7 +47,7 @@ export const monthlyCommand = define({
 		}
 
 		// Calculate totals
-		const totals = calculateTotals(monthlyData);
+		const totals = calculateTotals(dailyData);
 
 		// Show debug information if requested
 		if (ctx.values.debug && !ctx.values.json) {
@@ -62,8 +58,8 @@ export const monthlyCommand = define({
 		if (ctx.values.json) {
 			// Output JSON format
 			const jsonOutput = {
-				monthly: monthlyData.map(data => ({
-					month: data.month,
+				daily: dailyData.map(data => ({
+					date: data.date,
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
 					cacheCreationTokens: data.cacheCreationTokens,
@@ -79,12 +75,12 @@ export const monthlyCommand = define({
 		}
 		else {
 			// Print header
-			logger.box('Claude Code Token Usage Report - Monthly');
+			logger.box('Claude Code Token Usage Report - Daily');
 
 			// Create table with compact mode support
 			const table = new ResponsiveTable({
 				head: [
-					'Month',
+					'Date',
 					'Models',
 					'Input',
 					'Output',
@@ -108,7 +104,7 @@ export const monthlyCommand = define({
 				],
 				dateFormatter: formatDateCompact,
 				compactHead: [
-					'Month',
+					'Date',
 					'Models',
 					'Input',
 					'Output',
@@ -124,11 +120,11 @@ export const monthlyCommand = define({
 				compactThreshold: 100,
 			});
 
-			// Add monthly data
-			for (const data of monthlyData) {
+			// Add daily data
+			for (const data of dailyData) {
 				// Main row
 				table.push([
-					data.month,
+					data.date,
 					formatModelsDisplayMultiline(data.modelsUsed),
 					formatNumber(data.inputTokens),
 					formatNumber(data.outputTokens),

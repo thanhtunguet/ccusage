@@ -8,30 +8,32 @@
  * @module mcp
  */
 
-import type { LoadOptions } from './data-loader.ts';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { createFixture } from 'fs-fixture';
-import { Hono } from 'hono/tiny';
-import { z } from 'zod';
-
-import { name, version } from '../package.json';
-import { filterDateSchema } from './_types.ts';
-import {
-	calculateTotals,
-	createTotalsObject,
-	getTotalTokens,
-} from './calculate-cost.ts';
+import type {
+	LoadOptions
+} from './data-loader.ts';
 import {
 	getClaudePaths,
 	loadDailyUsageData,
 	loadMonthlyUsageData,
 	loadSessionBlockData,
-	loadSessionData,
+	loadSessionData
 } from './data-loader.ts';
+import { calculateTotals, createTotalsObject, getTotalTokens } from './calculate-cost.ts';
+import { filterDateSchema } from './_types.ts';
+import { createFixture } from 'fs-fixture';
+import { Hono } from 'hono/tiny';
+import { z } from 'zod';
+
+import { MCP_DEFAULT_PORT } from './_consts.ts';
+
+// Package info constants
+const name = '@ccusage/core';
+const version = '15.2.0';
 
 // Output schemas for structured responses
 const modelBreakdownSchema = z.object({

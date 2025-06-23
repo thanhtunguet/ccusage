@@ -1,0 +1,116 @@
+{
+  "name": "@ccusage/core",
+  "type": "module",
+  "version": "15.2.0",
+  "description": "Core library for Claude Code usage analysis",
+  "author": "ryoppippi",
+  "license": "MIT",
+  "funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+  "homepage": "https://github.com/ryoppippi/ccusage#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ryoppippi/ccusage.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/ryoppippi/ccusage/issues"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.cts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "format": "bun run lint --fix",
+    "lint": "eslint --cache .",
+    "prepack": "bun run build && clean-pkg-json",
+    "test": "vitest",
+    "typecheck": "tsgo --noEmit"
+  },
+  "dependencies": {
+    "@hono/mcp": "^0.1.0",
+    "@hono/node-server": "^1.14.4",
+    "@modelcontextprotocol/sdk": "^1.13.0",
+    "@oxc-project/runtime": "^0.74.0",
+    "es-toolkit": "^1.39.3",
+    "fast-sort": "^3.4.1",
+    "hono": "^4.8.0",
+    "path-type": "^6.0.0",
+    "string-width": "^7.2.0",
+    "tinyglobby": "^0.2.14",
+    "type-fest": "^4.41.0",
+    "xdg-basedir": "^5.1.0",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@antfu/utils": "^9.2.0",
+    "@core/errorutil": "npm:@jsr/core__errorutil",
+    "@jsr/std__async": "1",
+    "@oxc-project/runtime": "^0.74.0",
+    "@ryoppippi/eslint-config": "^0.3.7",
+    "@types/bun": "^1.2.16",
+    "clean-pkg-json": "^1.3.0",
+    "eslint": "^9.29.0",
+    "eslint-plugin-format": "^1.0.1",
+    "fs-fixture": "^2.8.1",
+    "publint": "^0.3.12",
+    "rollup-plugin-node-externals": "^8.0.1",
+    "tsdown": "^0.12.8",
+    "unplugin-macros": "^0.17.0",
+    "unplugin-unused": "^0.5.1",
+    "vitest": "^3.2.4"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./_consts": {
+      "import": "./dist/_consts.js",
+      "require": "./dist/_consts.cjs"
+    },
+    "./_macro": {
+      "import": "./dist/_macro.js",
+      "require": "./dist/_macro.cjs"
+    },
+    "./_session-blocks": {
+      "import": "./dist/_session-blocks.js",
+      "require": "./dist/_session-blocks.cjs"
+    },
+    "./_types": {
+      "import": "./dist/_types.js",
+      "require": "./dist/_types.cjs"
+    },
+    "./_utils": {
+      "import": "./dist/_utils.js",
+      "require": "./dist/_utils.cjs"
+    },
+    "./calculate-cost": {
+      "import": "./dist/calculate-cost.js",
+      "require": "./dist/calculate-cost.cjs"
+    },
+    "./data-loader": {
+      "import": "./dist/data-loader.js",
+      "require": "./dist/data-loader.cjs"
+    },
+    "./debug": {
+      "import": "./dist/debug.js",
+      "require": "./dist/debug.cjs"
+    },
+    "./logger": {
+      "import": "./dist/logger.js",
+      "require": "./dist/logger.cjs"
+    },
+    "./mcp": {
+      "import": "./dist/mcp.js",
+      "require": "./dist/mcp.cjs"
+    },
+    "./pricing-fetcher": {
+      "import": "./dist/pricing-fetcher.js",
+      "require": "./dist/pricing-fetcher.cjs"
+    },
+    "./package.json": "./package.json"
+  }
+}
