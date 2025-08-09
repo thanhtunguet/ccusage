@@ -28,18 +28,6 @@ Add this to your `~/.claude/settings.json` or `~/.config/claude/settings.json`:
 }
 ```
 
-### Prerequisites
-
-Ensure `ccusage` is installed globally or available in your PATH:
-
-```bash
-npm install -g ccusage
-# or
-bun install -g ccusage
-```
-
-**Note**: The status line command receives session information as JSON via stdin from Claude Code.
-
 ## Output Format
 
 The statusline displays a compact, single-line summary:
