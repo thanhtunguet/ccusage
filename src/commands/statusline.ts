@@ -72,7 +72,7 @@ export const statuslineCommand = define({
 
 		// Load today's usage data
 		const today = new Date();
-		const todayStr = today.toISOString().split('T')[0];
+		const todayStr = today.toISOString().split('T')[0]?.replace(/-/g, '') ?? ''; // Convert to YYYYMMDD format
 
 		let todayCost = 0;
 		try {
