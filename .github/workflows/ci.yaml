@@ -14,10 +14,8 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - name: Install jq
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
+      - name: Check jq is available
+        run: which jq && jq --version
       - run: bun lint
       - run: bun typecheck
       - name: Create default Claude directories for tests
