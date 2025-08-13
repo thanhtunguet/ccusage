@@ -14,15 +14,6 @@
 				"--no-cache"
 			]
 		},
-		"eslint-mcp": {
-			"type": "stdio",
-			"command": "bun",
-			"args": [
-				"x",
-				"@eslint/mcp@latest"
-			],
-			"env": {}
-		},
 		"@praha/byethrow": {
 			"type": "stdio",
 			"command": "bun",
