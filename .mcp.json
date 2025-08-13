@@ -27,7 +27,8 @@
 			"type": "stdio",
 			"command": "bun",
 			"args": [
-				"byethrow-mcp"
+				"x",
+				"@praha/byethrow-mcp"
 			],
 			"env": {}
 		},
