@@ -72,9 +72,7 @@ export const statuslineCommand = define({
 				}),
 				catch: error => error,
 			}),
-			Result.map((sessionCost) => {
-				return sessionCost?.totalCost;
-			}),
+			Result.map(sessionCost => sessionCost?.totalCost),
 			Result.inspectError(error => logger.error('Failed to load session data:', error)),
 			Result.unwrap(undefined),
 		);
