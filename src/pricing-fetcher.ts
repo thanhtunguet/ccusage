@@ -189,6 +189,29 @@ export class PricingFetcher implements Disposable {
 	}
 
 	/**
+	 * Gets context window limit for a specific model from LiteLLM data
+	 * @param modelName - The model name to get context limit for
+	 * @returns The context limit in tokens, or null if not found
+	 */
+	async getModelContextLimit(modelName: string): Result.ResultAsync<number | null, Error> {
+		return Result.pipe(
+			this.getModelPricing(modelName),
+			Result.map((pricing) => {
+				if (pricing == null) {
+					return null; // Model not found in LiteLLM pricing data
+				}
+
+				const contextLimit = pricing.max_input_tokens ?? pricing.max_tokens;
+				if (contextLimit == null) {
+					return null; // No context limit data available for model
+				}
+
+				return contextLimit;
+			}),
+		);
+	}
+
+	/**
 	 * Calculates the cost for given token usage and model
 	 * @param tokens - Token usage breakdown
 	 * @param tokens.input_tokens - Number of input tokens
@@ -615,6 +638,55 @@ if (import.meta.vitest != null) {
 					key.startsWith('claude-'),
 				);
 				expect(claudeModels.length).toBeGreaterThan(0);
+			});
+		});
+
+		describe('getModelContextLimit', () => {
+			it('should return context limit from pricing data when available', async () => {
+				using fetcher = new PricingFetcher(true); // Use offline mode with cached data
+
+				// Mock pricing data with context limits
+				const mockPricing = new Map([
+					['test-model', {
+						input_cost_per_token: 0.00001,
+						output_cost_per_token: 0.00003,
+						max_input_tokens: 100_000,
+					}],
+				]);
+				// eslint-disable-next-line ts/ban-ts-comment
+				// @ts-ignore - Accessing private property for testing
+				fetcher.cachedPricing = mockPricing;
+
+				const contextLimit = await Result.unwrap(fetcher.getModelContextLimit('test-model'));
+				expect(contextLimit).toBe(100_000);
+			});
+
+			it('should return null when model not found', async () => {
+				using fetcher = new PricingFetcher(true);
+				// eslint-disable-next-line ts/ban-ts-comment
+				// @ts-ignore - Accessing private property for testing
+				fetcher.cachedPricing = new Map(); // Empty cache
+
+				const result = await Result.unwrap(fetcher.getModelContextLimit('unknown-model'));
+				expect(result).toBeNull();
+			});
+
+			it('should return null when context fields are not available', async () => {
+				using fetcher = new PricingFetcher(true);
+
+				// Mock pricing data without context limits
+				const mockPricing = new Map([
+					['test-model', {
+						input_cost_per_token: 0.00001,
+						output_cost_per_token: 0.00003,
+					}],
+				]);
+				// eslint-disable-next-line ts/ban-ts-comment
+				// @ts-ignore - Accessing private property for testing
+				fetcher.cachedPricing = mockPricing;
+
+				const result = await Result.unwrap(fetcher.getModelContextLimit('test-model'));
+				expect(result).toBeNull();
 			});
 		});
 	});
