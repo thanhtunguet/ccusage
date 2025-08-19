@@ -71,6 +71,7 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
+		"@antfu/ni": "^25.0.0",
 		"@antfu/utils": "^9.2.0",
 		"@core/errorutil": "npm:@jsr/core__errorutil@^1.2.1",
 		"@hono/mcp": "^0.1.0",

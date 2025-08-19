@@ -51,6 +51,8 @@ Always prefer indexed searches (tools with `_from_index` suffix) over reading en
 
 This project uses **pnpm** as the package manager with **bun** as the runtime engine. The `devEngines.runtime` configuration ensures bun is automatically downloaded and used by pnpm.
 
+We also use **@antfu/ni** for convenient package manager agnostic commands (available as `ni`, `nr`, etc.).
+
 - `pnpm install` - Install dependencies (uses bun as runtime via devEngines)
 - `pnpm run <script>` - Run package.json scripts (executes via bun runtime)
 
