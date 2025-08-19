@@ -2,6 +2,7 @@
 	"name": "ccusage",
 	"type": "module",
 	"version": "15.10.0",
+	"packageManager": "pnpm@10.14.0",
 	"description": "Usage analysis tool for Claude Code",
 	"author": "ryoppippi",
 	"license": "MIT",
@@ -39,6 +40,13 @@
 	"engines": {
 		"node": ">=20.19.4"
 	},
+	"devEngines": {
+		"runtime": {
+			"name": "bun",
+			"version": "^1.2.20",
+			"onFail": "download"
+		}
+	},
 	"scripts": {
 		"build": "bun run generate:schema && tsdown",
 		"docs:build": "cd docs && bun run build",
@@ -47,7 +55,7 @@
 		"docs:preview": "cd docs && bun run preview",
 		"format": "bun run lint --fix",
 		"generate:schema": "bun run scripts/generate-json-schema.ts",
-		"preinstall": "npx only-allow bun",
+		"preinstall": "npx only-allow pnpm",
 		"lint": "eslint --cache .",
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
 		"prepack": "bun run build && bun clean-pkg-json -r scripts.preinstall",

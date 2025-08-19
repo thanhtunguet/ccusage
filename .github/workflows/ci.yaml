@@ -10,10 +10,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+      - run: pnpm install --frozen-lockfile
       - run: bun lint
       - run: bun typecheck
 
@@ -22,10 +20,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+      - run: pnpm install --frozen-lockfile
       - name: Check jq is available
         run: which jq && jq --version
       - name: Create default Claude directories for tests
@@ -39,11 +35,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bunx pkg-pr-new publish
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+      - run: pnpm install --frozen-lockfile
+      - run: npx pkg-pr-new publish --pnpm
 
   spell-check:
     runs-on: ubuntu-latest
@@ -51,7 +45,7 @@ jobs:
       - name: Checkout Actions Repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-      - uses: crate-ci/typos@master
+      - uses: crate-ci/typos@a4c3e43aea0a9e9b9e6578d2731ebd9a27e8f6cd # v1.35.5
         with:
           config: ./typos.toml
 
@@ -59,10 +53,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+      - run: pnpm install --frozen-lockfile
       - name: Generate schema files
         run: bun run generate:schema
       - name: Check if schema files are up-to-date
