@@ -147,7 +147,7 @@ importers:
   docs:
     devDependencies:
       '@ryoppippi/vite-plugin-cloudflare-redirect':
-        specifier: jsr:@ryoppippi/vite-plugin-cloudflare-redirect
+        specifier: jsr:@ryoppippi/vite-plugin-cloudflare-redirect@^1.1.2
         version: '@jsr/ryoppippi__vite-plugin-cloudflare-redirect@1.1.2'
       '@types/bun':
         specifier: ^1.2.20
