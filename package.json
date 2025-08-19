@@ -1,20 +1,19 @@
 {
 	"name": "ccusage",
-	"type": "module",
 	"version": "15.10.0",
-	"packageManager": "pnpm@10.14.0",
 	"description": "Usage analysis tool for Claude Code",
-	"author": "ryoppippi",
-	"license": "MIT",
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryoppippi/ccusage.git"
 	},
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+	"license": "MIT",
+	"author": "ryoppippi",
+	"type": "module",
 	"exports": {
 		".": "./dist/index.js",
 		"./calculate-cost": "./dist/calculate-cost.js",
@@ -37,16 +36,6 @@
 		".",
 		"docs"
 	],
-	"engines": {
-		"node": ">=20.19.4"
-	},
-	"devEngines": {
-		"runtime": {
-			"name": "bun",
-			"version": "^1.2.20",
-			"onFail": "download"
-		}
-	},
 	"scripts": {
 		"build": "nr generate:schema && tsdown",
 		"docs:build": "cd docs && nr build",
@@ -69,6 +58,14 @@
 		"test:statusline:sonnet4": "cat test/statusline-test-sonnet4.json | nr start statusline --offline",
 		"test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | nr start statusline --offline",
 		"typecheck": "tsgo --noEmit"
+	},
+	"lint-staged": {
+		"*": [
+			"eslint --cache --fix"
+		],
+		"package.json": [
+			"sort-package-json"
+		]
 	},
 	"devDependencies": {
 		"@antfu/ni": "^25.0.0",
@@ -116,12 +113,15 @@
 		"xdg-basedir": "^5.1.0",
 		"zod": "^3.25.67"
 	},
-	"lint-staged": {
-		"*": [
-			"eslint --cache --fix"
-		],
-		"package.json": [
-			"sort-package-json"
-		]
+	"packageManager": "pnpm@10.14.0",
+	"engines": {
+		"node": ">=20.19.4"
+	},
+	"devEngines": {
+		"runtime": {
+			"name": "bun",
+			"version": "^1.2.20",
+			"onFail": "download"
+		}
 	}
 }
