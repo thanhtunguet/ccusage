@@ -192,11 +192,35 @@ async function writeFile(path: string, content: string) {
 	return attempt();
 }
 
+async function readFile(path: string): Promise<Result.Result<string, any>> {
+	return Result.try({
+		try: async () => {
+			const file = Bun.file(path);
+			return file.text();
+		},
+		catch: error => error,
+	})();
+}
+
+async function copySchemaToDocsPublic() {
+	return Result.pipe(
+		Result.try({
+			try: $`cp ${SCHEMA_FILENAME} docs/public/${SCHEMA_FILENAME}`,
+			catch: error => error,
+		}),
+		Result.inspectError((error) => {
+			logger.error(`Failed to copy to docs/public/${SCHEMA_FILENAME}:`, error);
+			process.exit(1);
+		}),
+		Result.inspect(() => logger.info(`✓ Copied to docs/public/${SCHEMA_FILENAME}`)),
+	);
+}
+
 async function generateJsonSchema() {
 	logger.info('Generating JSON Schema from args-tokens configuration schema...');
 
 	// Create the JSON Schema
-	const schemaJson = Result.pipe(
+	const schemaObject = Result.pipe(
 		Result.try({
 			try: () => createConfigSchemaJson(),
 			catch: error => error,
@@ -205,10 +229,29 @@ async function generateJsonSchema() {
 			logger.error('Error creating JSON Schema:', error);
 			process.exit(1);
 		}),
-		// Write schema files
-		Result.map(schema => JSON.stringify(schema, null, '\t')),
 		Result.unwrap(),
 	);
+
+	// Check if existing root schema is identical to avoid unnecessary writes
+	const existingRootSchema = await Result.pipe(
+		readFile(SCHEMA_FILENAME),
+		Result.map(content => JSON.parse(content) as unknown),
+		Result.unwrap(''),
+	);
+
+	const isSchemaChanged = !Bun.deepEquals(existingRootSchema, schemaObject, true);
+
+	if (!isSchemaChanged) {
+		logger.info('✓ Root schema is up to date, skipping generation');
+
+		// Always copy to docs/public since it's gitignored
+		await copySchemaToDocsPublic();
+
+		logger.info('JSON Schema sync completed successfully!');
+		return;
+	}
+
+	const schemaJson = JSON.stringify(schemaObject, null, '\t');
 
 	await Result.pipe(
 		Result.try({
@@ -222,19 +265,10 @@ async function generateJsonSchema() {
 		Result.inspect(() => logger.info(`✓ Generated ${SCHEMA_FILENAME}`)),
 	);
 
-	await Result.pipe(
-		Result.try({
-			try: writeFile(`docs/public/${SCHEMA_FILENAME}`, schemaJson),
-			safe: true,
-		}),
-		Result.inspectError((error) => {
-			logger.error(`Failed to write docs/public/${SCHEMA_FILENAME}:`, error);
-			process.exit(1);
-		}),
-		Result.inspect(() => logger.info(`✓ Generated docs/public/${SCHEMA_FILENAME}`)),
-	);
+	// Copy to docs/public using Bun shell
+	await copySchemaToDocsPublic();
 
-	// Run lint on generated files
+	// Run lint on the root schema file that was changed
 	await Result.pipe(
 		Result.try({
 			try: runLint([SCHEMA_FILENAME]),
