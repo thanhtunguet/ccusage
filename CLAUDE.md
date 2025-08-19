@@ -53,6 +53,19 @@ This project uses **pnpm** as the package manager with **bun** as the runtime en
 
 We also use **@antfu/ni** for convenient package manager agnostic commands (available as `ni`, `nr`, etc.).
 
+**Dependency Management:**
+- Uses **pnpm catalog mode** with `catalogMode: strict` for centralized dependency management
+- Dependencies are organized into logical categories in `pnpm-workspace.yaml`:
+  - `dev`: Development tools, linting, TypeScript tools
+  - `library`: Runtime libraries, utilities, frameworks
+  - `test`: Testing utilities and fixtures
+  - `build`: Build tools, bundlers, deployment tools
+  - `types`: TypeScript type definitions
+  - `docs`: Documentation tools (VitePress, TypeDoc)
+- All dependencies in package.json reference catalogs using `catalog:<category>` syntax
+- This ensures version consistency across the workspace and simplifies dependency updates
+
+**Commands:**
 - `pnpm install` - Install dependencies (uses bun as runtime via devEngines)
 - `pnpm run <script>` - Run package.json scripts (executes via bun runtime)
 
