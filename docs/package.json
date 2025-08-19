@@ -12,9 +12,9 @@
     "preview": "vitepress preview"
   },
   "devDependencies": {
-    "@ryoppippi/vite-plugin-cloudflare-redirect": "catalog:docs-jsr",
+    "@ryoppippi/vite-plugin-cloudflare-redirect": "catalog:docs",
     "@types/bun": "catalog:types",
-    "tinyglobby": "catalog:utils",
+    "tinyglobby": "catalog:library",
     "typedoc": "catalog:docs",
     "typedoc-plugin-markdown": "catalog:docs",
     "typedoc-vitepress-theme": "catalog:docs",
@@ -22,6 +22,6 @@
     "vitepress-plugin-group-icons": "catalog:docs",
     "vitepress-plugin-llms": "catalog:docs",
     "vitepress-plugin-mermaid": "catalog:docs",
-    "wrangler": "catalog:docs"
+    "wrangler": "catalog:build"
   }
 }
