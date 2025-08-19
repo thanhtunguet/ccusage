@@ -103,7 +103,7 @@
 		"tinyglobby": "catalog:library",
 		"tsdown": "catalog:build",
 		"type-fest": "catalog:library",
-		"unplugin-macros": "catalog:",
+		"unplugin-macros": "catalog:build",
 		"unplugin-unused": "catalog:build",
 		"vitest": "catalog:test",
 		"xdg-basedir": "catalog:library",
