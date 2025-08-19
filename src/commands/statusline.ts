@@ -7,6 +7,7 @@ import { createLimoJson } from '@ryoppippi/limo';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
@@ -86,13 +87,18 @@ export const statuslineCommand = define({
 			description: `Refresh interval in seconds for cache expiry (default: ${DEFAULT_REFRESH_INTERVAL_SECONDS})`,
 			default: DEFAULT_REFRESH_INTERVAL_SECONDS,
 		},
+		config: sharedArgs.config,
 	},
 	async run(ctx) {
 		// Set logger to silent for statusline output
 		logger.level = 0;
 
-		// Use refresh interval from CLI args
-		const refreshInterval = ctx.values.refreshInterval;
+		// Load configuration and merge with CLI args
+		const config = loadConfig(ctx.values.config);
+		const mergedOptions = mergeConfigWithArgs(ctx, config);
+
+		// Use refresh interval from merged options
+		const refreshInterval = mergedOptions.refreshInterval;
 
 		// Read input from stdin
 		const stdin = await getStdin();
@@ -126,7 +132,7 @@ export const statuslineCommand = define({
 		// Get current file modification time for cache validation and semaphore update
 		const currentMtime = await getFileModifiedTime(hookData.transcript_path);
 
-		if (ctx.values.cache && initialSemaphoreState != null) {
+		if (mergedOptions.cache && initialSemaphoreState != null) {
 			/**
 			 * Hybrid cache validation:
 			 * 1. Time-based expiry: Cache expires after refreshInterval seconds
@@ -201,7 +207,7 @@ export const statuslineCommand = define({
 						Result.try({
 							try: loadSessionUsageById(sessionId, {
 								mode: 'auto',
-								offline: ctx.values.offline,
+								offline: mergedOptions.offline,
 							}),
 							catch: error => error,
 						}),
@@ -220,7 +226,7 @@ export const statuslineCommand = define({
 								since: todayStr,
 								until: todayStr,
 								mode: 'auto',
-								offline: ctx.values.offline,
+								offline: mergedOptions.offline,
 							}),
 							catch: error => error,
 						}),
@@ -240,7 +246,7 @@ export const statuslineCommand = define({
 						Result.try({
 							try: loadSessionBlockData({
 								mode: 'auto',
-								offline: ctx.values.offline,
+								offline: mergedOptions.offline,
 							}),
 							catch: error => error,
 						}),
@@ -299,7 +305,7 @@ export const statuslineCommand = define({
 					// Calculate context tokens from transcript with model-specific limits
 					const contextInfo = await Result.pipe(
 						Result.try({
-							try: calculateContextTokens(hookData.transcript_path, hookData.model.id, ctx.values.offline),
+							try: calculateContextTokens(hookData.transcript_path, hookData.model.id, mergedOptions.offline),
 							catch: error => error,
 						}),
 						Result.inspectError(error => logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`)),
@@ -339,7 +345,7 @@ export const statuslineCommand = define({
 		if (Result.isSuccess(mainProcessingResult)) {
 			const statusLine = mainProcessingResult.value;
 			log(statusLine);
-			if (!ctx.values.cache) {
+			if (!mergedOptions.cache) {
 				return;
 			}
 			// update semaphore with result (use mtime from cache validation time)
@@ -371,7 +377,7 @@ export const statuslineCommand = define({
 
 			logger.error('Error in statusline command:', mainProcessingResult.error);
 
-			if (!ctx.values.cache) {
+			if (!mergedOptions.cache) {
 				return;
 			}
 
