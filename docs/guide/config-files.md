@@ -20,6 +20,7 @@ Put frequently used options in `defaults`:
 
 ```json
 {
+  "$schema": "https://ccusage.com/config-schema.json",
   "defaults": {
     "timezone": "UTC",
     "locale": "en-CA",
@@ -32,6 +33,7 @@ Put frequently used options in `defaults`:
 
 ```json
 {
+  "$schema": "https://ccusage.com/config-schema.json",
   "defaults": {
     "breakdown": false
   },
@@ -81,11 +83,13 @@ ccusage monthly
 
 ccusage searches for configuration files in these locations (in priority order):
 
-1. **Local project**: `.ccusage/ccusage.json` (highest priority)
-2. **User config**: `~/.config/claude/ccusage.json`
-3. **Legacy location**: `~/.claude/ccusage.json` (lowest priority)
+1. **Local project**: `.ccusage/ccusage.json` (higher priority)
+2. **User config**: `~/.claude/ccusage.json` or `~/.config/claude/ccusage.json` (lower priority)
 
 Configuration files are merged in priority order, with local project settings overriding user settings.
+If you pass a custom config file using `--config`, it will override both local and user configs.
+Note that configuration files are not required; if none are found, ccusage will use built-in defaults.
+Also, if you have multiple config files, only the first one found will be used.
 
 ## Basic Configuration
 
