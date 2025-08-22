@@ -95,7 +95,6 @@ export const statuslineCommand = define({
 			choices: costSourceChoices,
 			description: 'Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost), both (show both costs)',
 			default: 'auto',
-			short: 'cs',
 			negatable: false,
 			toKebab: true,
 		},
