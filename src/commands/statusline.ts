@@ -10,6 +10,7 @@ import { define } from 'gunshi';
 import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
+import { saveCostData } from '../_cost-storage.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
@@ -107,6 +108,13 @@ export const statuslineCommand = define({
 			type: 'number',
 			description: `Refresh interval in seconds for cache expiry (default: ${DEFAULT_REFRESH_INTERVAL_SECONDS})`,
 			default: DEFAULT_REFRESH_INTERVAL_SECONDS,
+		},
+		saveCost: {
+			type: 'boolean',
+			description: 'Save Claude Code costs to local storage for enhanced accuracy in other commands (default: true)',
+			default: true,
+			negatable: true,
+			toKebab: true,
 		},
 		config: sharedArgs.config,
 		debug: sharedArgs.debug,
@@ -437,6 +445,21 @@ export const statuslineCommand = define({
 		if (Result.isSuccess(mainProcessingResult)) {
 			const statusLine = mainProcessingResult.value;
 			log(statusLine);
+
+			// Save Claude Code cost data if available and enabled
+			if (ctx.values.saveCost && hookData.cost?.total_cost_usd != null) {
+				// Save cost asynchronously to avoid blocking statusline output
+				saveCostData(sessionId, hookData.cost.total_cost_usd)
+					.then((result) => {
+						if (Result.isFailure(result)) {
+							logger.debug(`Failed to save cost data: ${result.error.message}`);
+						}
+					})
+					.catch((error: unknown) => {
+						logger.debug(`Error saving cost data: ${error instanceof Error ? error.message : String(error)}`);
+					});
+			}
+
 			if (!mergedOptions.cache) {
 				return;
 			}

@@ -33,6 +33,7 @@ import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
 import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, CONTEXT_LOW_THRESHOLD_ENV, CONTEXT_MEDIUM_THRESHOLD_ENV, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_CONTEXT_USAGE_THRESHOLDS, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import { getSavedCost, saveCostData } from './_cost-storage.ts';
 import {
 	identifySessionBlocks,
 } from './_session-blocks.ts';
@@ -759,7 +760,7 @@ export async function sortFilesByTimestamp(files: string[]): Promise<string[]> {
 /**
  * Calculates cost for a single usage data entry based on the specified cost calculation mode
  * @param data - Usage data entry
- * @param mode - Cost calculation mode (auto, calculate, or display)
+ * @param mode - Cost calculation mode (auto, calculate, display, statusline, or max)
  * @param fetcher - Pricing fetcher instance for calculating costs from tokens
  * @returns Calculated cost in USD
  */
@@ -792,6 +793,55 @@ export async function calculateCostForEntry(
 		}
 
 		return 0;
+	}
+
+	if (mode === 'statusline') {
+		// Statusline mode: saved statusline costs → pre-calculated costUSD → token-based calculation
+		if (data.sessionId != null) {
+			const savedCost = await getSavedCost(data.sessionId);
+			if (savedCost != null) {
+				return savedCost;
+			}
+		}
+
+		// Fallback to costUSD
+		if (data.costUSD != null) {
+			return data.costUSD;
+		}
+
+		// Final fallback to calculation
+		if (data.message.model != null) {
+			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
+		}
+
+		return 0;
+	}
+
+	if (mode === 'max') {
+		// Max mode: MAX(saved statusline costs, pre-calculated costUSD, token-based calculation)
+		const costs: number[] = [];
+
+		// Get saved statusline cost
+		if (data.sessionId != null) {
+			const savedCost = await getSavedCost(data.sessionId);
+			if (savedCost != null) {
+				costs.push(savedCost);
+			}
+		}
+
+		// Get pre-calculated cost
+		if (data.costUSD != null) {
+			costs.push(data.costUSD);
+		}
+
+		// Get token-based calculation
+		if (data.message.model != null) {
+			const calculatedCost = Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
+			costs.push(calculatedCost);
+		}
+
+		// Return the maximum cost, or 0 if no costs available
+		return costs.length > 0 ? Math.max(...costs) : 0;
 	}
 
 	unreachable(mode);
@@ -4877,6 +4927,116 @@ if (import.meta.vitest != null) {
 			const thresholds = getContextUsageThresholds();
 			expect(thresholds.LOW).toBe(30);
 			expect(thresholds.MEDIUM).toBe(70);
+		});
+	});
+
+	describe('calculateCostForEntry with new cost modes', () => {
+		const mockUsageData: UsageData = {
+			timestamp: '2025-01-22T10:30:00Z',
+			sessionId: 'test-session-123',
+			message: {
+				usage: {
+					input_tokens: 1000,
+					output_tokens: 500,
+				},
+				model: 'claude-sonnet-4-20250514',
+			},
+			costUSD: 10.50,
+		};
+
+		it('should use statusline mode with saved cost data', async () => {
+			const mockFetcher = new PricingFetcher(true); // offline mode
+
+			// Save cost data first
+			await saveCostData('test-session-123', 15.75);
+
+			const cost = await calculateCostForEntry(mockUsageData, 'statusline', mockFetcher);
+			expect(cost).toBe(15.75); // Should use saved statusline cost
+		});
+
+		it('should fallback to costUSD in statusline mode when no saved cost', async () => {
+			const mockFetcher = new PricingFetcher(true);
+
+			const dataWithoutSavedCost = { ...mockUsageData, sessionId: 'non-existent-session' };
+			const cost = await calculateCostForEntry(dataWithoutSavedCost, 'statusline', mockFetcher);
+			expect(cost).toBe(10.50); // Should fallback to costUSD
+		});
+
+		it('should calculate max cost from all available sources', async () => {
+			const mockFetcher = new PricingFetcher(true);
+
+			// Save a high cost for this session
+			await saveCostData('test-session-123', 20.00);
+
+			const cost = await calculateCostForEntry(mockUsageData, 'max', mockFetcher);
+
+			// Max mode should return the highest value among:
+			// - Saved cost: 20.00
+			// - Pre-calculated costUSD: 10.50
+			// - Token-based calculation: varies but should be < 20.00 for this test
+			expect(cost).toBeGreaterThanOrEqual(20.00);
+		});
+
+		it('should handle max mode when only token calculation is available', async () => {
+			const mockFetcher = new PricingFetcher(true);
+
+			const dataWithoutCosts = {
+				...mockUsageData,
+				sessionId: 'no-saved-cost-session',
+				costUSD: undefined,
+			};
+
+			const cost = await calculateCostForEntry(dataWithoutCosts, 'max', mockFetcher);
+			expect(cost).toBeGreaterThan(0); // Should calculate from tokens
+		});
+
+		it('should maintain existing auto mode behavior', async () => {
+			const mockFetcher = new PricingFetcher(true);
+
+			const cost = await calculateCostForEntry(mockUsageData, 'auto', mockFetcher);
+			expect(cost).toBe(10.50); // Should use costUSD in auto mode
+		});
+
+		it('should maintain existing calculate mode behavior', async () => {
+			const mockFetcher = new PricingFetcher(true);
+
+			const cost = await calculateCostForEntry(mockUsageData, 'calculate', mockFetcher);
+			expect(cost).toBeGreaterThan(0); // Should calculate from tokens, ignoring costUSD
+		});
+
+		it('should maintain existing display mode behavior', async () => {
+			const mockFetcher = new PricingFetcher(true);
+
+			const cost = await calculateCostForEntry(mockUsageData, 'display', mockFetcher);
+			expect(cost).toBe(10.50); // Should use costUSD only
+
+			const dataWithoutCostUSD = { ...mockUsageData, costUSD: undefined };
+			const costWithoutUSD = await calculateCostForEntry(dataWithoutCostUSD, 'display', mockFetcher);
+			expect(costWithoutUSD).toBe(0); // Should return 0 when no costUSD
+		});
+
+		it('should handle missing sessionId gracefully in statusline mode', async () => {
+			const mockFetcher = new PricingFetcher(true);
+
+			const dataWithoutSessionId = { ...mockUsageData, sessionId: undefined };
+			const cost = await calculateCostForEntry(dataWithoutSessionId, 'statusline', mockFetcher);
+			expect(cost).toBe(10.50); // Should fallback to costUSD
+		});
+
+		it('should handle missing model gracefully', async () => {
+			const mockFetcher = new PricingFetcher(true);
+
+			const dataWithoutModel = {
+				...mockUsageData,
+				message: { usage: mockUsageData.message.usage },
+				costUSD: undefined,
+			};
+
+			const statuslineCost = await calculateCostForEntry(dataWithoutModel, 'statusline', mockFetcher);
+			expect(statuslineCost).toBe(0); // No saved cost, no costUSD, no model for calculation
+
+			const maxCost = await calculateCostForEntry(dataWithoutModel, 'max', mockFetcher);
+			expect(maxCost).toBe(0); // No costs available
 		});
 	});
 }
