@@ -55,14 +55,15 @@ function getCostFilePath(sessionId: string): string {
  * Ensure the cost storage directory exists
  * @returns Result indicating success or failure
  */
-function ensureCostStorageDir(): Result<void, Error> {
-	return Result.try({
-		try: () => {
-			const dir = getCostStorageDir();
-			mkdirSync(dir, { recursive: true });
-		},
-		catch: error => error as Error,
-	});
+function ensureCostStorageDir(): Result.Result<void, Error> {
+	try {
+		const dir = getCostStorageDir();
+		mkdirSync(dir, { recursive: true });
+		return Result.succeed(undefined);
+	}
+	catch (error) {
+		return Result.fail(error as Error);
+	}
 }
 
 /**
@@ -77,46 +78,49 @@ export async function saveCostData(
 	sessionId: string,
 	totalCostUsd: number,
 	timestamp?: string,
-): Promise<Result<void, Error>> {
-	return Result.pipe(
-		ensureCostStorageDir(),
-		Result.andThen(() => Result.try({
-			try: async () => {
-				const filePath = getCostFilePath(sessionId);
-				const currentTime = timestamp ?? new Date().toISOString();
+): Promise<Result.Result<void, Error>> {
+	const dirResult = ensureCostStorageDir();
+	if (Result.isFailure(dirResult)) {
+		return Promise.resolve(dirResult);
+	}
 
-				const newEntry: CostEntry = {
-					timestamp: currentTime,
-					totalCostUsd,
-					source: 'statusline',
-				};
+	try {
+		const filePath = getCostFilePath(sessionId);
+		const currentTime = timestamp ?? new Date().toISOString();
 
-				// Try to load existing data
-				const existingDataResult = await loadCostData(sessionId);
+		const newEntry: CostEntry = {
+			timestamp: currentTime,
+			totalCostUsd,
+			source: 'statusline',
+		};
 
-				let costData: CostData;
-				if (Result.isSuccess(existingDataResult)) {
-					// Append to existing data
-					costData = existingDataResult.value;
-					costData.costs.push(newEntry);
-				}
-				else {
-					// Create new data
-					costData = {
-						sessionId,
-						costs: [newEntry],
-					};
-				}
+		// Try to load existing data
+		const existingDataResult = await loadCostData(sessionId);
 
-				// Write the updated data
-				const jsonContent = JSON.stringify(costData, null, 2);
-				await writeFile(filePath, jsonContent, 'utf-8');
+		let costData: CostData;
+		if (Result.isSuccess(existingDataResult)) {
+			// Append to existing data
+			costData = existingDataResult.value;
+			costData.costs.push(newEntry);
+		}
+		else {
+			// Create new data
+			costData = {
+				sessionId,
+				costs: [newEntry],
+			};
+		}
 
-				logger.debug(`Saved cost data for session ${sessionId}: $${totalCostUsd}`);
-			},
-			catch: error => error as Error,
-		})),
-	);
+		// Write the updated data
+		const jsonContent = JSON.stringify(costData, null, 2);
+		await writeFile(filePath, jsonContent, 'utf-8');
+
+		logger.debug(`Saved cost data for session ${sessionId}: $${totalCostUsd}`);
+		return Result.succeed(undefined);
+	}
+	catch (error) {
+		return Result.fail(error as Error);
+	}
 }
 
 /**
@@ -124,22 +128,22 @@ export async function saveCostData(
  * @param sessionId - Session ID
  * @returns Result with cost data or error if not found/invalid
  */
-export async function loadCostData(sessionId: string): Promise<Result<CostData, Error>> {
-	return Result.try({
-		try: async () => {
-			const filePath = getCostFilePath(sessionId);
-			const content = await readFile(filePath, 'utf-8');
-			const parsed = JSON.parse(content) as unknown;
-			const result = costDataSchema.safeParse(parsed);
+export async function loadCostData(sessionId: string): Promise<Result.Result<CostData, Error>> {
+	try {
+		const filePath = getCostFilePath(sessionId);
+		const content = await readFile(filePath, 'utf-8');
+		const parsed = JSON.parse(content) as unknown;
+		const result = costDataSchema.safeParse(parsed);
 
-			if (!result.success) {
-				throw new Error(`Invalid cost data format for session ${sessionId}: ${result.error.message}`);
-			}
+		if (!result.success) {
+			return Result.fail(new Error(`Invalid cost data format for session ${sessionId}: ${result.error.message}`));
+		}
 
-			return result.data;
-		},
-		catch: error => error as Error,
-	});
+		return Result.succeed(result.data);
+	}
+	catch (error) {
+		return Result.fail(error as Error);
+	}
 }
 
 /**
@@ -147,11 +151,11 @@ export async function loadCostData(sessionId: string): Promise<Result<CostData, 
  * @param sessionId - Session ID
  * @returns Result with the most recent cost entry or error if not found
  */
-export async function getLatestCost(sessionId: string): Promise<Result<CostEntry | null, Error>> {
+export async function getLatestCost(sessionId: string): Promise<Result.Result<CostEntry | null, Error>> {
 	const loadResult = await loadCostData(sessionId);
 
 	if (Result.isFailure(loadResult)) {
-		logger.debug(`Failed to load cost data for session ${sessionId}: ${loadResult.error.message}`);
+		logger.debug(`Failed to load cost data for session ${sessionId}: ${loadResult.error instanceof Error ? loadResult.error.message : String(loadResult.error)}`);
 		return Result.succeed(null); // Return null instead of propagating error
 	}
 
@@ -163,7 +167,7 @@ export async function getLatestCost(sessionId: string): Promise<Result<CostEntry
 	// Find the entry with the most recent timestamp
 	const sortedCosts = data.costs
 		.slice()
-		.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+		.sort((a: CostEntry, b: CostEntry) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
 	return Result.succeed(sortedCosts[0] ?? null);
 }
@@ -179,7 +183,7 @@ export async function getSavedCost(sessionId: string): Promise<number | undefine
 	const result = await getLatestCost(sessionId);
 
 	if (Result.isSuccess(result) && result.value != null) {
-		return result.value.totalCostUsd;
+		return (result.value).totalCostUsd;
 	}
 
 	return undefined;

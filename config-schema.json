@@ -759,6 +759,18 @@
 									"markdownDescription": "Refresh interval in seconds for cache expiry (default: 1)",
 									"default": 1
 								},
+								"contextLowThreshold": {
+									"type": "string",
+									"description": "Context usage percentage below which status is shown in green (0-100)",
+									"markdownDescription": "Context usage percentage below which status is shown in green (0-100)",
+									"default": 50
+								},
+								"contextMediumThreshold": {
+									"type": "string",
+									"description": "Context usage percentage below which status is shown in yellow (0-100)",
+									"markdownDescription": "Context usage percentage below which status is shown in yellow (0-100)",
+									"default": 80
+								},
 								"saveCost": {
 									"type": "boolean",
 									"description": "Save Claude Code costs to local storage for enhanced accuracy in other commands (default: true)",
