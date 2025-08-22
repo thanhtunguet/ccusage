@@ -769,7 +769,8 @@ export async function calculateCostForEntry(
 
 		// Final fallback to calculation
 		if (data.message.model != null) {
-			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
+			const calculatedCostResult = await fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
+			return Result.unwrap(calculatedCostResult, 0);
 		}
 
 		return 0;
@@ -794,7 +795,8 @@ export async function calculateCostForEntry(
 
 		// Get token-based calculation
 		if (data.message.model != null) {
-			const calculatedCost = Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
+			const calculatedCostResult = await fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
+			const calculatedCost = Result.unwrap(calculatedCostResult, 0);
 			costs.push(calculatedCost);
 		}
 

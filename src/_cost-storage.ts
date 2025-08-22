@@ -183,7 +183,7 @@ export async function getSavedCost(sessionId: string): Promise<number | undefine
 	const result = await getLatestCost(sessionId);
 
 	if (Result.isSuccess(result) && result.value != null) {
-		return (result.value).totalCostUsd;
+		return result.value.totalCostUsd;
 	}
 
 	return undefined;
