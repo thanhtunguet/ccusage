@@ -110,7 +110,8 @@
 	"lint-staged": {
 		"*": [
 			"eslint --cache --fix",
-			"bun run generate:schema"
+			"bun run generate:schema",
+			"bun vitest --passWithNoTests"
 		],
 		"package.json": [
 			"sort-package-json"
