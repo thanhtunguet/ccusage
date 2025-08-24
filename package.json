@@ -52,7 +52,7 @@
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
 		"prepack": "bun run build && bun clean-pkg-json -r scripts.preinstall",
 		"prepare": "git config --local core.hooksPath .githooks && bun run generate:schema",
-		"release": "bun lint && bun typecheck && vitest run && bun run build && bumpp",
+		"release": "bun lint && bun typecheck && vitest && bun run build && bumpp",
 		"start": "bun run ./src/index.ts",
 		"test": "TZ=UTC vitest",
 		"test:statusline": "cat test/statusline-test.json | bun run start statusline",
