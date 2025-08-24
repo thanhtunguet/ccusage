@@ -717,10 +717,8 @@ if (import.meta.vitest != null) {
 					compactThreshold: 100,
 				});
 
-				// Mock console.warn to capture warning
-				const originalWarn = console.warn;
-				const mockWarn = vi.fn();
-				console.warn = mockWarn;
+				// Mock logger.warn to capture warning
+				const mockWarn = vi.spyOn(logger, 'warn');
 
 				// Mock process.env.COLUMNS to simulate narrow terminal
 				const originalColumns = process.env.COLUMNS;
@@ -740,7 +738,7 @@ if (import.meta.vitest != null) {
 				);
 
 				// Restore original values
-				console.warn = originalWarn;
+				mockWarn.mockRestore();
 				process.env.COLUMNS = originalColumns;
 			});
 
