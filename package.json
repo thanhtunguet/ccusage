@@ -113,6 +113,9 @@
 			"bun run generate:schema",
 			"bun vitest --passWithNoTests"
 		],
+		"*.{ts,js}": [
+			"bun typecheck"
+		],
 		"package.json": [
 			"sort-package-json"
 		]
