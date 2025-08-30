@@ -25,7 +25,7 @@ const BlocksPage: React.FC = () => {
 	useEffect(() => {
 		blocksUsage.refetch(queryParams);
 		blocksSummary.refetch(queryParams);
-	}, [queryParams, blocksUsage.refetch, blocksSummary.refetch]);
+	}, [queryParams]);
 
 	const handleDateRangeChange = (dates: any) => {
 		if (dates && dates.length === 2) {
@@ -60,7 +60,7 @@ const BlocksPage: React.FC = () => {
 	
 	// Transform blocks data for trend chart
 	const chartData = blocksData.map(block => ({
-		date: block.startTime,
+		date: dayjs(block.startTime).format('YYYY-MM-DD HH:mm'),
 		totalCostUSD: block.costUSD,
 		totalTokens: block.totalTokens,
 		modelBreakdown: block.models.map(model => ({
