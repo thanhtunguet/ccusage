@@ -18,6 +18,11 @@ const BlocksPage: React.FC = () => {
 		active: false,
 		recent: false,
 	});
+	
+	const [pagination, setPagination] = useState({
+		current: 1,
+		pageSize: 10,
+	});
 
 	const blocksUsage = useBlocksUsage();
 	const blocksSummary = useBlocksSummary();
@@ -53,6 +58,13 @@ const BlocksPage: React.FC = () => {
 
 	const handleRecentToggle = (recent: boolean) => {
 		setQueryParams(prev => ({ ...prev, recent }));
+	};
+
+	const handleTableChange = (paginationConfig: any) => {
+		setPagination({
+			current: paginationConfig.current,
+			pageSize: paginationConfig.pageSize,
+		});
 	};
 
 	// Prepare data for charts
@@ -327,11 +339,14 @@ const BlocksPage: React.FC = () => {
 					rowKey={(record) => `${record.startTime}-${record.endTime}`}
 					loading={blocksUsage.loading}
 					pagination={{
-						pageSize: 10,
+						...pagination,
 						showSizeChanger: true,
 						showQuickJumper: true,
-						showTotal: (total) => `Total ${total} blocks`,
+						showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} blocks`,
+						pageSizeOptions: ['5', '10', '20', '50', '100'],
+						showLessItems: false,
 					}}
+					onChange={handleTableChange}
 					scroll={{ x: 1200 }}
 				/>
 			</Card>
