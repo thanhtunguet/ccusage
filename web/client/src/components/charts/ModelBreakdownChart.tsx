@@ -39,12 +39,29 @@ const ModelBreakdownChart: React.FC<ModelBreakdownChartProps> = ({
 		);
 	}
 
+	// Filter out invalid data items
+	const validData = data.filter(item => 
+		item && 
+		typeof item === 'object' && 
+		item.model && 
+		(item.costUSD > 0 || item.cost > 0 || item.tokens > 0)
+	);
+
+	if (validData.length === 0) {
+		return (
+			<Card title={title} className="dashboard-card">
+				<Empty description="No valid model data" />
+			</Card>
+		);
+	}
+
 	// Transform data for the chart
-	const chartData = data.filter(item => item && item.model).map(item => ({
+	const chartData = validData.map(item => ({
 		model: (item.model || 'unknown').replace('claude-', ''), // Shorten model names
-		value: showBy === 'cost' ? (item.costUSD || 0) : (item.tokens || 0),
+		value: showBy === 'cost' ? (item.costUSD || item.cost || 0) : (item.tokens || 0),
 		fullModel: item.model || 'unknown',
-		cost: item.costUSD || 0,
+		cost: item.costUSD || item.cost || 0,
+		costUSD: item.costUSD || item.cost || 0,
 		tokens: item.tokens || 0,
 	}));
 
@@ -70,17 +87,29 @@ const ModelBreakdownChart: React.FC<ModelBreakdownChartProps> = ({
 		label: {
 			type: 'outer',
 			formatter: (datum: any) => {
-				const percentage = ((datum.value / chartData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1);
-				return `${datum.model}: ${percentage}%`;
+				if (!datum || typeof datum !== 'object') return 'unknown';
+				
+				const datumValue = datum.value || datum.data?.value || 0;
+				const totalValue = chartData.reduce((sum, item) => sum + (item.value || 0), 0);
+				const percentage = totalValue > 0 && datumValue > 0 ? ((datumValue / totalValue) * 100).toFixed(1) : '0.0';
+				const modelName = datum.model || datum.data?.model || 'unknown';
+				
+				return `${modelName}: ${percentage}%`;
 			},
 		},
 		tooltip: {
 			formatter: (datum: any) => {
-				const costValue = `$${datum.cost.toFixed(4)}`;
-				const tokensValue = datum.tokens.toLocaleString();
+				if (!datum || typeof datum !== 'object') {
+					return { name: 'unknown', value: 'No data' };
+				}
+				
+				const cost = datum.cost || datum.costUSD || datum.data?.cost || datum.data?.costUSD || 0;
+				const tokens = datum.tokens || datum.data?.tokens || 0;
+				const costValue = `$${cost.toFixed(4)}`;
+				const tokensValue = tokens.toLocaleString();
 				
 				return {
-					name: datum.fullModel,
+					name: datum.fullModel || datum.model || datum.data?.fullModel || datum.data?.model || 'unknown',
 					value: showBy === 'cost' 
 						? `${costValue} (${tokensValue} tokens)`
 						: `${tokensValue} tokens (${costValue})`,
