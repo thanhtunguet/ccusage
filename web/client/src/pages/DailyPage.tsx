@@ -72,6 +72,27 @@ const DailyPage: React.FC = () => {
 		
 		return true;
 	});
+	
+	// Debug logging
+	console.log('Daily page - queryParams:', queryParams);
+	console.log('Daily page - rawChartData length:', rawChartData.length);
+	console.log('Daily page - filtered chartData length:', chartData.length);
+	console.log('Daily page - first few filtered dates:', chartData.slice(0, 3).map(d => d.date));
+
+	// Calculate client-side summary stats from filtered data
+	const clientSummaryStats = {
+		totalDays: chartData.length,
+		totalCost: chartData.reduce((sum, day) => sum + (day.totalCostUSD || 0), 0),
+		totalTokens: chartData.reduce((sum, day) => sum + (day.totalTokens || 0), 0),
+		avgCostPerDay: 0, // Will calculate below
+	};
+	clientSummaryStats.avgCostPerDay = clientSummaryStats.totalDays > 0 
+		? clientSummaryStats.totalCost / clientSummaryStats.totalDays 
+		: 0;
+	
+	// Debug the calculation
+	console.log('Daily page - clientSummaryStats:', clientSummaryStats);
+
 	const modelBreakdownData = chartData.reduce((acc, day) => {
 		day.modelBreakdown?.forEach(model => {
 			const existing = acc.find(item => item.model === model.model);
@@ -155,35 +176,35 @@ const DailyPage: React.FC = () => {
 				<Col xs={24} sm={12} md={6}>
 					<StatCard
 						title="Total Cost"
-						value={dailySummary.data?.totalCost || 0}
+						value={clientSummaryStats.totalCost}
 						prefix="$"
 						precision={4}
-						loading={dailySummary.loading}
+						loading={dailyUsage.loading}
 					/>
 				</Col>
 				<Col xs={24} sm={12} md={6}>
 					<StatCard
 						title="Total Tokens"
-						value={dailySummary.data?.totalTokens || 0}
+						value={clientSummaryStats.totalTokens}
 						formatter={(value) => Number(value).toLocaleString()}
-						loading={dailySummary.loading}
+						loading={dailyUsage.loading}
 					/>
 				</Col>
 				<Col xs={24} sm={12} md={6}>
 					<StatCard
 						title="Total Days"
-						value={dailySummary.data?.totalDays || 0}
+						value={clientSummaryStats.totalDays}
 						precision={0}
-						loading={dailySummary.loading}
+						loading={dailyUsage.loading}
 					/>
 				</Col>
 				<Col xs={24} sm={12} md={6}>
 					<StatCard
 						title="Avg Cost/Day"
-						value={dailySummary.data?.avgCostPerDay || 0}
+						value={clientSummaryStats.avgCostPerDay}
 						prefix="$"
 						precision={4}
-						loading={dailySummary.loading}
+						loading={dailyUsage.loading}
 					/>
 				</Col>
 			</Row>
