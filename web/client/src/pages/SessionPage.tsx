@@ -22,7 +22,7 @@ const SessionPage: React.FC = () => {
 	useEffect(() => {
 		sessionUsage.refetch(queryParams);
 		sessionSummary.refetch(queryParams);
-	}, [queryParams, sessionUsage.refetch, sessionSummary.refetch]);
+	}, [queryParams]);
 
 	const handleDateRangeChange = (dates: any) => {
 		if (dates && dates.length === 2) {
@@ -51,8 +51,33 @@ const SessionPage: React.FC = () => {
 	// Prepare data for charts
 	const sessionsData = sessionUsage.data?.data || [];
 	
-	// Transform session data for cost trend chart (group by date)
-	const dailySessionData = sessionsData.reduce((acc, session) => {
+	// Apply client-side filtering
+	const filteredSessionsData = sessionsData.filter(session => {
+		const sessionDate = dayjs(session.lastActivity);
+		
+		// Apply date range filter if specified
+		if (queryParams.from && queryParams.to) {
+			const fromDate = dayjs(queryParams.from);
+			const toDate = dayjs(queryParams.to).endOf('day');
+			if (sessionDate.isBefore(fromDate, 'day') || sessionDate.isAfter(toDate, 'day')) return false;
+		} else if (queryParams.from) {
+			const fromDate = dayjs(queryParams.from);
+			if (!sessionDate.isSameOrAfter(fromDate, 'day')) return false;
+		} else if (queryParams.to) {
+			const toDate = dayjs(queryParams.to).endOf('day');
+			if (!sessionDate.isSameOrBefore(toDate, 'day')) return false;
+		}
+		
+		// Apply project filter if specified
+		if (queryParams.project && queryParams.project.length > 0) {
+			if (!queryParams.project.includes(session.projectPath)) return false;
+		}
+		
+		return true;
+	});
+	
+	// Transform filtered session data for cost trend chart (group by date)
+	const dailySessionData = filteredSessionsData.reduce((acc, session) => {
 		const date = dayjs(session.lastActivity).format('YYYY-MM-DD');
 		const existing = acc.find(item => item.date === date);
 		if (existing) {
@@ -69,7 +94,7 @@ const SessionPage: React.FC = () => {
 	}, [] as Array<{ date: string; totalCostUSD: number; totalTokens: number }>)
 		.sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix());
 
-	const modelBreakdownData = sessionsData.reduce((acc, session) => {
+	const modelBreakdownData = filteredSessionsData.reduce((acc, session) => {
 		session.modelBreakdown?.forEach(model => {
 			const existing = acc.find(item => item.model === model.model);
 			if (existing) {
@@ -244,8 +269,8 @@ const SessionPage: React.FC = () => {
 				<Col xs={24} lg={12}>
 					<Card title="Projects Overview" className="dashboard-card">
 						<div style={{ maxHeight: '350px', overflowY: 'auto' }}>
-							{Array.from(new Set(sessionsData.map(s => s.projectPath))).map(project => {
-								const projectSessions = sessionsData.filter(s => s.projectPath === project);
+							{Array.from(new Set(filteredSessionsData.map(s => s.projectPath))).map(project => {
+								const projectSessions = filteredSessionsData.filter(s => s.projectPath === project);
 								const totalCost = projectSessions.reduce((sum, s) => sum + s.totalCost, 0);
 								const totalTokens = projectSessions.reduce((sum, s) => sum + s.totalTokens, 0);
 								
@@ -266,7 +291,7 @@ const SessionPage: React.FC = () => {
 									</div>
 								);
 							})}
-							{sessionsData.length === 0 && <div>No session data available</div>}
+							{filteredSessionsData.length === 0 && <div>No session data available</div>}
 						</div>
 					</Card>
 				</Col>
@@ -275,7 +300,7 @@ const SessionPage: React.FC = () => {
 			{/* Detailed Table */}
 			<Card title="Session Details" className="dashboard-card">
 				<Table
-					dataSource={sessionsData}
+					dataSource={filteredSessionsData}
 					columns={columns}
 					rowKey="sessionId"
 					loading={sessionUsage.loading}
