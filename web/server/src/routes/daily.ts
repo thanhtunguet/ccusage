@@ -45,8 +45,14 @@ dailyRoutes.get('/summary', async (c) => {
 
 		// Calculate summary statistics
 		const totalDays = usageData.length;
-		const totalCost = usageData.reduce((sum, day) => sum + day.totalCostUSD, 0);
-		const totalTokens = usageData.reduce((sum, day) => sum + day.totalTokens, 0);
+		const totalCost = usageData.reduce((sum, day) => sum + (day.totalCost || 0), 0);
+		const totalTokens = usageData.reduce((sum, day) => sum + (
+			(day.totalTokens || 0) + 
+			(day.inputTokens || 0) + 
+			(day.outputTokens || 0) + 
+			(day.cacheCreationTokens || 0) + 
+			(day.cacheReadTokens || 0)
+		), 0);
 		const avgCostPerDay = totalDays > 0 ? totalCost / totalDays : 0;
 		
 		return c.json({
