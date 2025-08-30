@@ -24,7 +24,7 @@ const DailyPage: React.FC = () => {
 		// Load data when component mounts or params change
 		dailyUsage.refetch(queryParams);
 		dailySummary.refetch(queryParams);
-	}, [queryParams, dailyUsage.refetch, dailySummary.refetch]);
+	}, [queryParams]);
 
 	const handleDateRangeChange = (dates: any) => {
 		if (dates && dates.length === 2) {
@@ -51,7 +51,27 @@ const DailyPage: React.FC = () => {
 	};
 
 	// Prepare data for charts
-	const chartData = dailyUsage.data?.data || [];
+	const rawChartData = dailyUsage.data?.data || [];
+	
+	// Apply client-side filtering
+	const chartData = rawChartData.filter(day => {
+		const dayDate = dayjs(day.date);
+		
+		// Apply date range filter if specified
+		if (queryParams.from && queryParams.to) {
+			const fromDate = dayjs(queryParams.from);
+			const toDate = dayjs(queryParams.to).endOf('day');
+			if (dayDate.isBefore(fromDate, 'day') || dayDate.isAfter(toDate, 'day')) return false;
+		} else if (queryParams.from) {
+			const fromDate = dayjs(queryParams.from);
+			if (!dayDate.isSameOrAfter(fromDate, 'day')) return false;
+		} else if (queryParams.to) {
+			const toDate = dayjs(queryParams.to).endOf('day');
+			if (!dayDate.isSameOrBefore(toDate, 'day')) return false;
+		}
+		
+		return true;
+	});
 	const modelBreakdownData = chartData.reduce((acc, day) => {
 		day.modelBreakdown?.forEach(model => {
 			const existing = acc.find(item => item.model === model.model);
