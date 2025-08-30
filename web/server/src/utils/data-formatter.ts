@@ -98,9 +98,9 @@ export function createDailyApiResponse(usageData: any[], query: ApiQuery): ApiRe
 export function createMonthlyApiResponse(usageData: any[], query: ApiQuery): ApiResponse<MonthlyUsageData[]> {
 	const transformedData: MonthlyUsageData[] = usageData.map(month => ({
 		month: month.month,
-		totalCostUSD: month.totalCostUSD || 0,
-		totalTokens: month.totalTokens || 0,
-		modelBreakdown: transformModelBreakdown(month.modelBreakdown || []),
+		totalCostUSD: month.totalCost || 0,
+		totalTokens: (month.inputTokens || 0) + (month.outputTokens || 0) + (month.cacheCreationTokens || 0) + (month.cacheReadTokens || 0),
+		modelBreakdown: transformModelBreakdown(month.modelBreakdowns || []),
 		projects: query.instances ? transformProjectBreakdown(month.projects || []) : undefined,
 	}));
 
@@ -170,13 +170,13 @@ export function createBlocksApiResponse(usageData: any[], query: ApiQuery): ApiR
 
 function transformModelBreakdown(modelData: any[]): ModelBreakdown[] {
 	return modelData.map(model => ({
-		model: model.model || model.modelName,
-		costUSD: model.costUSD || model.totalCostUSD || 0,
-		tokens: model.tokens || model.totalTokens || 0,
+		model: model.modelName || model.model,
+		costUSD: model.cost || model.costUSD || 0,
+		tokens: (model.inputTokens || 0) + (model.outputTokens || 0) + (model.cacheCreationTokens || 0) + (model.cacheReadTokens || 0),
 		inputTokens: model.inputTokens || 0,
 		outputTokens: model.outputTokens || 0,
-		cacheCreationTokens: model.cacheCreationTokens,
-		cacheReadTokens: model.cacheReadTokens,
+		cacheCreationTokens: model.cacheCreationTokens || 0,
+		cacheReadTokens: model.cacheReadTokens || 0,
 	}));
 }
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Row, Col, Card, Switch, Button, Alert, Badge } from 'antd';
 import { ReloadOutlined, PauseOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { useDailyUsage } from '../hooks/useApiData';
+
 import CostTrendChart from '../components/charts/CostTrendChart';
 import StatCard from '../components/StatCard';
 import apiService from '../services/api';
@@ -12,11 +12,10 @@ const LivePage: React.FC = () => {
 	const [lastUpdate, setLastUpdate] = useState<string>(dayjs().format('HH:mm:ss'));
 	const [currentData, setCurrentData] = useState<any>(null);
 	const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
+	const [trendData, setTrendData] = useState<any[]>([]);
+	const [trendLoading, setTrendLoading] = useState(false);
 	
-	// Use daily usage hook for recent data
-	const dailyUsage = useDailyUsage();
-
-	// Auto-refresh current data
+	// Fetch current data function
 	const fetchCurrentData = useCallback(async () => {
 		try {
 			setConnectionStatus('connecting');
@@ -30,51 +29,63 @@ const LivePage: React.FC = () => {
 		}
 	}, []);
 
-	// Load recent trend data
-	const loadTrendData = useCallback(() => {
-		const endDate = dayjs();
-		const startDate = endDate.subtract(7, 'day');
-		
-		dailyUsage.refetch({
-			from: startDate.format('YYYY-MM-DD'),
-			to: endDate.format('YYYY-MM-DD'),
-			mode: 'auto',
-		});
-	}, [dailyUsage]);
+	// Fetch trend data function
+	const fetchTrendData = useCallback(async () => {
+		try {
+			setTrendLoading(true);
+			const endDate = dayjs();
+			const startDate = endDate.subtract(7, 'day');
+			
+			const data = await apiService.getDailyUsage({
+				from: startDate.format('YYYY-MM-DD'),
+				to: endDate.format('YYYY-MM-DD'),
+				mode: 'auto',
+			});
+			
+			setTrendData(data.data || []);
+		} catch (error) {
+			console.error('Failed to fetch trend data:', error);
+			setTrendData([]);
+		} finally {
+			setTrendLoading(false);
+		}
+	}, []);
+
+	// Initial data load
+	useEffect(() => {
+		fetchCurrentData();
+		fetchTrendData();
+	}, []);
 
 	// Auto-refresh effect
 	useEffect(() => {
-		if (isLive) {
-			fetchCurrentData();
-			loadTrendData();
-			
-			const interval = setInterval(() => {
-				fetchCurrentData();
-				loadTrendData();
-			}, 30000); // Refresh every 30 seconds
+		if (!isLive) return;
 
-			return () => clearInterval(interval);
-		}
-	}, [isLive, fetchCurrentData, loadTrendData]);
+		const interval = setInterval(() => {
+			fetchCurrentData();
+			fetchTrendData();
+		}, 30000); // Refresh every 30 seconds
+
+		return () => clearInterval(interval);
+	}, [isLive, fetchCurrentData, fetchTrendData]);
 
 	const handleManualRefresh = () => {
 		fetchCurrentData();
-		loadTrendData();
+		fetchTrendData();
 	};
 
 	const toggleLiveMode = () => {
 		setIsLive(!isLive);
 	};
 
-	// Calculate today's stats
-	const todayData = dailyUsage.data?.data?.find(day => 
+	// Calculate today's stats from trend data
+	const todayData = trendData.find(day => 
 		dayjs(day.date).isSame(dayjs(), 'day')
 	);
 
-	// Calculate this week's stats
-	const weekData = dailyUsage.data?.data || [];
-	const weekTotalCost = weekData.reduce((sum, day) => sum + day.totalCostUSD, 0);
-	const weekTotalTokens = weekData.reduce((sum, day) => sum + day.totalTokens, 0);
+	// Calculate this week's stats from trend data
+	const weekTotalCost = trendData.reduce((sum, day) => sum + day.totalCostUSD, 0);
+	const weekTotalTokens = trendData.reduce((sum, day) => sum + day.totalTokens, 0);
 
 	// Get status color
 	const getStatusColor = (status: string) => {
@@ -148,7 +159,7 @@ const LivePage: React.FC = () => {
 						value={todayData?.totalCostUSD || 0}
 						prefix="$"
 						precision={4}
-						loading={dailyUsage.loading}
+						loading={trendLoading}
 					/>
 				</Col>
 				<Col xs={24} sm={12} md={6}>
@@ -156,7 +167,7 @@ const LivePage: React.FC = () => {
 						title="Today's Tokens"
 						value={todayData?.totalTokens || 0}
 						formatter={(value) => Number(value).toLocaleString()}
-						loading={dailyUsage.loading}
+						loading={trendLoading}
 					/>
 				</Col>
 				<Col xs={24} sm={12} md={6}>
@@ -165,7 +176,7 @@ const LivePage: React.FC = () => {
 						value={weekTotalCost}
 						prefix="$"
 						precision={4}
-						loading={dailyUsage.loading}
+						loading={trendLoading}
 					/>
 				</Col>
 				<Col xs={24} sm={12} md={6}>
@@ -173,7 +184,7 @@ const LivePage: React.FC = () => {
 						title="This Week's Tokens"
 						value={weekTotalTokens}
 						formatter={(value) => Number(value).toLocaleString()}
-						loading={dailyUsage.loading}
+						loading={trendLoading}
 					/>
 				</Col>
 			</Row>
@@ -185,20 +196,23 @@ const LivePage: React.FC = () => {
 						<Col xs={24} sm={8}>
 							<div>
 								<strong>Session Cost:</strong><br />
-								${currentData.totalCostUSD?.toFixed(4) || '0.0000'}
+								${currentData.totalCost?.toFixed(4) || '0.0000'}
 							</div>
 						</Col>
 						<Col xs={24} sm={8}>
 							<div>
 								<strong>Session Tokens:</strong><br />
-								{currentData.totalTokens?.toLocaleString() || '0'}
+								{((currentData.inputTokens || 0) + 
+								  (currentData.outputTokens || 0) + 
+								  (currentData.cacheCreationTokens || 0) + 
+								  (currentData.cacheReadTokens || 0)).toLocaleString()}
 							</div>
 						</Col>
 						<Col xs={24} sm={8}>
 							<div>
 								<strong>Active Models:</strong><br />
-								{currentData.modelBreakdown?.map((m: any) => 
-									m.model.replace('claude-', '')
+								{currentData.modelsUsed?.map((model: string) => 
+									model.replace('claude-', '')
 								).join(', ') || 'None'}
 							</div>
 						</Col>
@@ -210,8 +224,8 @@ const LivePage: React.FC = () => {
 			<Row gutter={[16, 16]}>
 				<Col xs={24}>
 					<CostTrendChart
-						data={dailyUsage.data?.data || []}
-						loading={dailyUsage.loading}
+						data={trendData}
+						loading={trendLoading}
 						title="Recent Usage Trends (Last 7 Days)"
 						showTokens={true}
 					/>

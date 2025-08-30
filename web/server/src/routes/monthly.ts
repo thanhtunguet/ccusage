@@ -44,8 +44,9 @@ monthlyRoutes.get('/summary', async (c) => {
 		});
 
 		const totalMonths = usageData.length;
-		const totalCost = usageData.reduce((sum, month) => sum + month.totalCostUSD, 0);
-		const totalTokens = usageData.reduce((sum, month) => sum + month.totalTokens, 0);
+		const totalCost = usageData.reduce((sum, month) => sum + month.totalCost, 0);
+		const totalTokens = usageData.reduce((sum, month) => 
+			sum + month.inputTokens + month.outputTokens + month.cacheCreationTokens + month.cacheReadTokens, 0);
 		const avgCostPerMonth = totalMonths > 0 ? totalCost / totalMonths : 0;
 		
 		return c.json({
