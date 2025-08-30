@@ -115,6 +115,11 @@ const BlocksPage: React.FC = () => {
 		// Ensure we have valid models array
 		const models = block.models?.filter(model => model && typeof model === 'string' && model.trim().length > 0) || [];
 		
+		// Debug logging
+		if (models.length === 0 && block.models && block.models.length > 0) {
+			console.log('Filtered out models:', block.models, 'from block:', block.id);
+		}
+		
 		models.forEach(model => {
 			const existing = acc.find(item => item.model === model);
 			const modelCost = block.costUSD / models.length;
@@ -135,6 +140,9 @@ const BlocksPage: React.FC = () => {
 		});
 		return acc;
 	}, [] as Array<{ model: string; costUSD: number; cost: number; tokens: number }>);
+	
+	// Debug the final model breakdown data
+	console.log('Final modelBreakdownData:', modelBreakdownData);
 
 	// Table columns
 	const columns = [

@@ -39,6 +39,9 @@ const ModelBreakdownChart: React.FC<ModelBreakdownChartProps> = ({
 		);
 	}
 
+	// Debug incoming data
+	console.log('ModelBreakdownChart received data:', data);
+	
 	// Filter out invalid data items
 	const validData = data.filter(item => 
 		item && 
@@ -48,6 +51,8 @@ const ModelBreakdownChart: React.FC<ModelBreakdownChartProps> = ({
 		item.model.trim().length > 0 &&
 		(item.costUSD > 0 || item.cost > 0 || item.tokens > 0)
 	);
+	
+	console.log('ModelBreakdownChart validData:', validData);
 
 	if (validData.length === 0) {
 		return (
@@ -64,6 +69,7 @@ const ModelBreakdownChart: React.FC<ModelBreakdownChartProps> = ({
 		
 		return {
 			model: cleanModelName || 'unknown', // Ensure we never have empty strings
+			name: cleanModelName || 'unknown', // Add name field for labels
 			value: showBy === 'cost' ? (item.costUSD || item.cost || 0) : (item.tokens || 0),
 			fullModel: fullModelName || 'unknown',
 			cost: item.costUSD || item.cost || 0,
@@ -88,12 +94,13 @@ const ModelBreakdownChart: React.FC<ModelBreakdownChartProps> = ({
 		height,
 		angleField: 'value',
 		colorField: 'model',
-		color: chartData.map(item => getModelColor(item.fullModel)),
+		color: (datum: any) => {
+			const model = datum.fullModel || datum.model || 'unknown';
+			return getModelColor(model);
+		},
 		radius: 0.8,
 		innerRadius: 0.4,
-		label: {
-			visible: true,
-		},
+		label: false, // Disable labels to avoid compatibility issues with unsupported types
 		tooltip: {
 			formatter: (datum: any) => {
 				if (!datum || typeof datum !== 'object') {
