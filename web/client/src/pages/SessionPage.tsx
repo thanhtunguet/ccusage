@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Row, Col, DatePicker, Select, Card, Table, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { useSessionUsage, useSessionSummary } from '../hooks/useApiData';
+import CostTrendChart from '../components/charts/CostTrendChart';
 import ModelBreakdownChart from '../components/charts/ModelBreakdownChart';
 import StatCard from '../components/StatCard';
 import type { SessionUsageData, ApiQueryParams } from '../services/api';
@@ -49,6 +50,25 @@ const SessionPage: React.FC = () => {
 
 	// Prepare data for charts
 	const sessionsData = sessionUsage.data?.data || [];
+	
+	// Transform session data for cost trend chart (group by date)
+	const dailySessionData = sessionsData.reduce((acc, session) => {
+		const date = dayjs(session.lastActivity).format('YYYY-MM-DD');
+		const existing = acc.find(item => item.date === date);
+		if (existing) {
+			existing.totalCostUSD += session.totalCost;
+			existing.totalTokens += session.totalTokens;
+		} else {
+			acc.push({
+				date,
+				totalCostUSD: session.totalCost,
+				totalTokens: session.totalTokens,
+			});
+		}
+		return acc;
+	}, [] as Array<{ date: string; totalCostUSD: number; totalTokens: number }>)
+		.sort((a, b) => dayjs(a.date).unix() - dayjs(b.date).unix());
+
 	const modelBreakdownData = sessionsData.reduce((acc, session) => {
 		session.modelBreakdown?.forEach(model => {
 			const existing = acc.find(item => item.model === model.model);
@@ -199,7 +219,19 @@ const SessionPage: React.FC = () => {
 				</Col>
 			</Row>
 
-			{/* Charts and Project Stats */}
+			{/* Cost Trend Chart */}
+		<Row gutter={[16, 16]} style={{ marginBottom: '16px' }}>
+			<Col xs={24}>
+				<CostTrendChart
+					data={dailySessionData}
+					loading={sessionUsage.loading}
+					title="Session Cost Trends by Date"
+					showTokens={true}
+				/>
+			</Col>
+		</Row>
+
+		{/* Model Breakdown and Project Stats */}
 			<Row gutter={[16, 16]} style={{ marginBottom: '16px' }}>
 				<Col xs={24} lg={12}>
 					<ModelBreakdownChart
@@ -212,19 +244,29 @@ const SessionPage: React.FC = () => {
 				<Col xs={24} lg={12}>
 					<Card title="Projects Overview" className="dashboard-card">
 						<div style={{ maxHeight: '350px', overflowY: 'auto' }}>
-							{sessionSummary.data?.projects?.map(project => (
-								<div key={project} style={{ 
-									display: 'flex', 
-									justifyContent: 'space-between', 
-									padding: '8px 0',
-									borderBottom: '1px solid #f0f0f0'
-								}}>
-									<span>{project}</span>
-									<span style={{ color: '#666' }}>
-										{sessionsData.filter(s => s.projectName === project).length} sessions
-									</span>
-								</div>
-							)) || <div>No project data available</div>}
+							{Array.from(new Set(sessionsData.map(s => s.projectPath))).map(project => {
+								const projectSessions = sessionsData.filter(s => s.projectPath === project);
+								const totalCost = projectSessions.reduce((sum, s) => sum + s.totalCost, 0);
+								const totalTokens = projectSessions.reduce((sum, s) => sum + s.totalTokens, 0);
+								
+								return (
+									<div key={project} style={{ 
+										display: 'flex', 
+										justifyContent: 'space-between', 
+										padding: '8px 0',
+										borderBottom: '1px solid #f0f0f0'
+									}}>
+										<span>{project}</span>
+										<div style={{ color: '#666', textAlign: 'right' }}>
+											<div>{projectSessions.length} sessions</div>
+											<div style={{ fontSize: '12px' }}>
+												${totalCost.toFixed(4)} • {totalTokens.toLocaleString()} tokens
+											</div>
+										</div>
+									</div>
+								);
+							})}
+							{sessionsData.length === 0 && <div>No session data available</div>}
 						</div>
 					</Card>
 				</Col>
