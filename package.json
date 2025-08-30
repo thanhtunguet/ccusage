@@ -51,7 +51,7 @@
 		"lint": "eslint --cache .",
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
 		"prepack": "bun run build && bun clean-pkg-json -r scripts.preinstall",
-		"prepare": "git config --local core.hooksPath .githooks && bun run generate:schema",
+		"prepare": "bun run generate:schema",
 		"release": "bun lint && bun typecheck && vitest && bun run build && bumpp",
 		"start": "bun run ./src/index.ts",
 		"test": "TZ=UTC vitest",
@@ -106,18 +106,5 @@
 		"vitest": "^3.2.4",
 		"xdg-basedir": "^5.1.0",
 		"zod": "^3.25.67"
-	},
-	"lint-staged": {
-		"*": [
-			"eslint --cache --fix",
-			"bun run generate:schema",
-			"bun vitest --passWithNoTests"
-		],
-		"*.{ts,js}": [
-			"bun typecheck"
-		],
-		"package.json": [
-			"sort-package-json"
-		]
 	}
 }

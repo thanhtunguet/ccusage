@@ -1,0 +1,129 @@
+:root {
+	font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+	line-height: 1.5;
+	font-weight: 400;
+
+	color-scheme: light dark;
+	color: rgba(255, 255, 255, 0.87);
+	background-color: #242424;
+
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	padding: 0;
+	min-height: 100vh;
+}
+
+#root {
+	min-height: 100vh;
+}
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+::-webkit-scrollbar-track {
+	background: #f1f1f1;
+	border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+	background: #c1c1c1;
+	border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: #a8a8a8;
+}
+
+/* Ant Design customizations */
+.ant-layout {
+	min-height: 100vh;
+}
+
+.dashboard-card {
+	margin-bottom: 16px;
+}
+
+.dashboard-card .ant-card-body {
+	padding: 16px;
+}
+
+.chart-container {
+	height: 400px;
+	width: 100%;
+}
+
+.stat-card {
+	text-align: center;
+}
+
+.stat-number {
+	font-size: 28px;
+	font-weight: bold;
+	color: #1890ff;
+	margin-bottom: 8px;
+}
+
+.stat-label {
+	font-size: 14px;
+	color: #666;
+}
+
+.loading-container {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 200px;
+}
+
+.error-container {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	height: 200px;
+	color: #f5222d;
+}
+
+.date-range-picker {
+	margin-bottom: 16px;
+}
+
+.filter-controls {
+	display: flex;
+	gap: 16px;
+	margin-bottom: 16px;
+	flex-wrap: wrap;
+}
+
+.filter-controls .ant-select,
+.filter-controls .ant-date-picker {
+	min-width: 200px;
+}
+
+@media (max-width: 768px) {
+	.filter-controls {
+		flex-direction: column;
+	}
+	
+	.filter-controls .ant-select,
+	.filter-controls .ant-date-picker {
+		width: 100%;
+	}
+	
+	.chart-container {
+		height: 300px;
+	}
+}

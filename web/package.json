@@ -1,0 +1,20 @@
+{
+	"name": "ccusage-web",
+	"private": true,
+	"version": "1.0.0",
+	"type": "module",
+	"description": "Web dashboard for ccusage CLI tool",
+	"scripts": {
+		"dev": "concurrently \"bun run server:dev\" \"bun run client:dev\"",
+		"server:dev": "cd server && bun run dev",
+		"client:dev": "cd client && bun run dev",
+		"build": "bun run client:build && bun run server:build",
+		"client:build": "cd client && bun run build",
+		"server:build": "cd server && bun run build",
+		"preview": "cd client && bun run preview",
+		"start": "cd server && bun run start"
+	},
+	"devDependencies": {
+		"concurrently": "^9.1.0"
+	}
+}
