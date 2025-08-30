@@ -85,17 +85,7 @@ const ModelBreakdownChart: React.FC<ModelBreakdownChartProps> = ({
 		radius: 0.8,
 		innerRadius: 0.4,
 		label: {
-			type: 'outer',
-			formatter: (datum: any) => {
-				if (!datum || typeof datum !== 'object') return 'unknown';
-				
-				const datumValue = datum.value || datum.data?.value || 0;
-				const totalValue = chartData.reduce((sum, item) => sum + (item.value || 0), 0);
-				const percentage = totalValue > 0 && datumValue > 0 ? ((datumValue / totalValue) * 100).toFixed(1) : '0.0';
-				const modelName = datum.model || datum.data?.model || 'unknown';
-				
-				return `${modelName}: ${percentage}%`;
-			},
+			visible: true,
 		},
 		tooltip: {
 			formatter: (datum: any) => {
