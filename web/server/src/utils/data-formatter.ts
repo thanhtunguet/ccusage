@@ -79,8 +79,8 @@ export function createDailyApiResponse(usageData: any[], query: ApiQuery): ApiRe
 	// Transform the data from the CLI format to API format
 	const transformedData: DailyUsageData[] = usageData.map(day => ({
 		date: day.date,
-		totalCostUSD: day.totalCostUSD || 0,
-		totalTokens: day.totalTokens || 0,
+		totalCostUSD: day.totalCost || 0,
+		totalTokens: day.totalTokens || (day.inputTokens || 0) + (day.outputTokens || 0) + (day.cacheCreationTokens || 0) + (day.cacheReadTokens || 0),
 		modelBreakdown: transformModelBreakdown(day.modelBreakdown || []),
 		projects: query.instances ? transformProjectBreakdown(day.projects || []) : undefined,
 	}));
