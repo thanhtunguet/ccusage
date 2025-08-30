@@ -58,8 +58,37 @@ const BlocksPage: React.FC = () => {
 	// Prepare data for charts
 	const blocksData = blocksUsage.data?.data || [];
 	
-	// Transform blocks data for trend chart
-	const chartData = blocksData.map(block => ({
+	// Apply client-side filtering
+	const filteredBlocksData = blocksData.filter(block => {
+		const blockDate = dayjs(block.startTime);
+		
+		// Apply date range filter if specified
+		if (queryParams.from && queryParams.to) {
+			const fromDate = dayjs(queryParams.from);
+			const toDate = dayjs(queryParams.to).endOf('day'); // Include the entire end day
+			if (blockDate.isBefore(fromDate, 'day') || blockDate.isAfter(toDate, 'day')) return false;
+		} else if (queryParams.from) {
+			const fromDate = dayjs(queryParams.from);
+			if (!blockDate.isSameOrAfter(fromDate, 'day')) return false;
+		} else if (queryParams.to) {
+			const toDate = dayjs(queryParams.to).endOf('day');
+			if (!blockDate.isSameOrBefore(toDate, 'day')) return false;
+		}
+		
+		// Apply active filter if specified
+		if (queryParams.active && !block.isActive) return false;
+		
+		// Apply recent filter if specified (last 3 days)
+		if (queryParams.recent) {
+			const threeDaysAgo = dayjs().subtract(3, 'days');
+			if (!blockDate.isSameOrAfter(threeDaysAgo, 'day')) return false;
+		}
+		
+		return true;
+	});
+	
+	// Transform filtered blocks data for trend chart
+	const chartData = filteredBlocksData.map(block => ({
 		date: dayjs(block.startTime).format('YYYY-MM-DD HH:mm'),
 		totalCostUSD: block.costUSD,
 		totalTokens: block.totalTokens,
@@ -70,22 +99,24 @@ const BlocksPage: React.FC = () => {
 		})),
 	}));
 
-	const modelBreakdownData = blocksData.reduce((acc, block) => {
+	const modelBreakdownData = filteredBlocksData.reduce((acc, block) => {
 		block.models?.forEach(model => {
 			const existing = acc.find(item => item.model === model);
 			if (existing) {
 				existing.costUSD += block.costUSD / block.models.length;
+				existing.cost += block.costUSD / block.models.length;
 				existing.tokens += block.totalTokens / block.models.length;
 			} else {
 				acc.push({
 					model: model,
 					costUSD: block.costUSD / block.models.length,
+					cost: block.costUSD / block.models.length, // Add cost field for chart compatibility
 					tokens: block.totalTokens / block.models.length,
 				});
 			}
 		});
 		return acc;
-	}, [] as Array<{ model: string; costUSD: number; tokens: number }>);
+	}, [] as Array<{ model: string; costUSD: number; cost: number; tokens: number }>);
 
 	// Table columns
 	const columns = [
@@ -291,7 +322,7 @@ const BlocksPage: React.FC = () => {
 			{/* Detailed Table */}
 			<Card title="5-Hour Block Details" className="dashboard-card">
 				<Table
-					dataSource={blocksData}
+					dataSource={filteredBlocksData}
 					columns={columns}
 					rowKey={(record) => `${record.startTime}-${record.endTime}`}
 					loading={blocksUsage.loading}
