@@ -44,6 +44,8 @@ const ModelBreakdownChart: React.FC<ModelBreakdownChartProps> = ({
 		item && 
 		typeof item === 'object' && 
 		item.model && 
+		typeof item.model === 'string' &&
+		item.model.trim().length > 0 &&
 		(item.costUSD > 0 || item.cost > 0 || item.tokens > 0)
 	);
 
@@ -56,14 +58,19 @@ const ModelBreakdownChart: React.FC<ModelBreakdownChartProps> = ({
 	}
 
 	// Transform data for the chart
-	const chartData = validData.map(item => ({
-		model: (item.model || 'unknown').replace('claude-', ''), // Shorten model names
-		value: showBy === 'cost' ? (item.costUSD || item.cost || 0) : (item.tokens || 0),
-		fullModel: item.model || 'unknown',
-		cost: item.costUSD || item.cost || 0,
-		costUSD: item.costUSD || item.cost || 0,
-		tokens: item.tokens || 0,
-	}));
+	const chartData = validData.map(item => {
+		const cleanModelName = (item.model || 'unknown').trim().replace('claude-', '');
+		const fullModelName = (item.model || 'unknown').trim();
+		
+		return {
+			model: cleanModelName || 'unknown', // Ensure we never have empty strings
+			value: showBy === 'cost' ? (item.costUSD || item.cost || 0) : (item.tokens || 0),
+			fullModel: fullModelName || 'unknown',
+			cost: item.costUSD || item.cost || 0,
+			costUSD: item.costUSD || item.cost || 0,
+			tokens: item.tokens || 0,
+		};
+	});
 
 	// Define colors for different models
 	const getModelColor = (model: string): string => {

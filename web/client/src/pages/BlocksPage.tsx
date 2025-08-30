@@ -112,18 +112,24 @@ const BlocksPage: React.FC = () => {
 	}));
 
 	const modelBreakdownData = filteredBlocksData.reduce((acc, block) => {
-		block.models?.forEach(model => {
+		// Ensure we have valid models array
+		const models = block.models?.filter(model => model && typeof model === 'string' && model.trim().length > 0) || [];
+		
+		models.forEach(model => {
 			const existing = acc.find(item => item.model === model);
+			const modelCost = block.costUSD / models.length;
+			const modelTokens = block.totalTokens / models.length;
+			
 			if (existing) {
-				existing.costUSD += block.costUSD / block.models.length;
-				existing.cost += block.costUSD / block.models.length;
-				existing.tokens += block.totalTokens / block.models.length;
+				existing.costUSD += modelCost;
+				existing.cost += modelCost;
+				existing.tokens += modelTokens;
 			} else {
 				acc.push({
 					model: model,
-					costUSD: block.costUSD / block.models.length,
-					cost: block.costUSD / block.models.length, // Add cost field for chart compatibility
-					tokens: block.totalTokens / block.models.length,
+					costUSD: modelCost,
+					cost: modelCost, // Add cost field for chart compatibility
+					tokens: modelTokens,
 				});
 			}
 		});
