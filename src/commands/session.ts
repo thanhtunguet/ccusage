@@ -1,5 +1,4 @@
 import type { UsageReportConfig } from '../_table.ts';
-// Types not needed here after extracting --id logic
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
@@ -19,14 +18,15 @@ import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 import { handleSessionIdLookup } from './_session_id.ts';
 
-// All --id logic moved to ./_session_id.ts
+// eslint-disable-next-line ts/no-unused-vars
+const { order: _, ...sharedArgs } = sharedCommandConfig.args;
 
 export const sessionCommand = define({
 	name: 'session',
 	description: 'Show usage report grouped by conversation session',
 	...sharedCommandConfig,
 	args: {
-		...sharedCommandConfig.args,
+		...sharedArgs,
 		id: {
 			type: 'string',
 			short: 'i',
@@ -64,7 +64,6 @@ export const sessionCommand = define({
 			since: ctx.values.since,
 			until: ctx.values.until,
 			mode: ctx.values.mode,
-			order: ctx.values.order,
 			offline: ctx.values.offline,
 			timezone: ctx.values.timezone,
 			locale: ctx.values.locale,
