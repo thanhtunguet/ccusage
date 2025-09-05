@@ -110,7 +110,7 @@ export default withMermaid(defineConfig({
 
 		footer: {
 			message: 'Released under the MIT License.',
-			copyright: 'Copyright © 2024 ryoppippi',
+			copyright: 'Copyright © 2025 ryoppippi',
 		},
 
 		search: {
