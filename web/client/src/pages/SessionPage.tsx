@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Row, Col, DatePicker, Select, Card, Table, Tag } from 'antd';
 import dayjs from 'dayjs';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
 import { useSessionUsage, useSessionSummary } from '../hooks/useApiData';
 import CostTrendChart from '../components/charts/CostTrendChart';
 import ModelBreakdownChart from '../components/charts/ModelBreakdownChart';

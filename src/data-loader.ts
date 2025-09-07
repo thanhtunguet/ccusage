@@ -38,6 +38,7 @@ import {
 	sortByDate,
 } from './_date-utils.ts';
 import {
+	filterRecentBlocks,
 	identifySessionBlocks,
 } from './_session-blocks.ts';
 import {
@@ -715,6 +716,8 @@ export type LoadOptions = {
 	startOfWeek?: WeekDay; // Start of week for weekly aggregation
 	timezone?: string; // Timezone for date grouping (e.g., 'UTC', 'America/New_York'). Defaults to system timezone
 	locale?: string; // Locale for date/time formatting (e.g., 'en-US', 'ja-JP'). Defaults to 'en-US'
+	active?: boolean; // Filter to only active blocks
+	recent?: boolean; // Filter to recent blocks (last 3 days)
 } & DateFilter;
 
 /**
@@ -1422,8 +1425,18 @@ export async function loadSessionBlockData(
 			})
 		: blocks;
 
+	// Apply recent filter if specified (last 3 days)
+	const recentFiltered = options?.recent === true
+		? filterRecentBlocks(dateFiltered)
+		: dateFiltered;
+
+	// Apply active filter if specified
+	const activeFiltered = options?.active === true
+		? recentFiltered.filter(block => block.isActive)
+		: recentFiltered;
+
 	// Sort by start time based on order option
-	return sortByDate(dateFiltered, block => block.startTime, options?.order);
+	return sortByDate(activeFiltered, block => block.startTime, options?.order);
 }
 
 if (import.meta.vitest != null) {

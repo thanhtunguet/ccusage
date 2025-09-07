@@ -2,6 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Row, Col, DatePicker, Select, Card, Table, Tag, Switch } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
 import { useBlocksUsage, useBlocksSummary } from '../hooks/useApiData';
 import CostTrendChart from '../components/charts/CostTrendChart';
 import ModelBreakdownChart from '../components/charts/ModelBreakdownChart';
