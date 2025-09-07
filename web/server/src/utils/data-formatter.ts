@@ -81,7 +81,7 @@ export function createDailyApiResponse(usageData: any[], query: ApiQuery): ApiRe
 		date: day.date,
 		totalCostUSD: day.totalCost || 0,
 		totalTokens: day.totalTokens || (day.inputTokens || 0) + (day.outputTokens || 0) + (day.cacheCreationTokens || 0) + (day.cacheReadTokens || 0),
-		modelBreakdown: transformModelBreakdown(day.modelBreakdown || []),
+		modelBreakdown: transformModelBreakdown(day.modelBreakdowns || []),
 		projects: query.instances ? transformProjectBreakdown(day.projects || []) : undefined,
 	}));
 
@@ -185,6 +185,6 @@ function transformProjectBreakdown(projectData: any[]): ProjectBreakdown[] {
 		projectName: project.projectName,
 		costUSD: project.costUSD || project.totalCostUSD || 0,
 		tokens: project.tokens || project.totalTokens || 0,
-		modelBreakdown: transformModelBreakdown(project.modelBreakdown || []),
+		modelBreakdown: transformModelBreakdown(project.modelBreakdowns || []),
 	}));
 }
