@@ -31,12 +31,8 @@ sessionRoutes.get('/summary', async (c) => {
 	try {
 		const query = parseApiQuery(c.req.query());
 		
-		const usageData = await loadSessionData({
-			mode: query.mode,
-			dateRange: query.dateRange,
-			projectFilter: query.projectFilter,
-			modelFilter: query.modelFilter,
-		});
+		// Get data from cache instead of loading from disk
+		const usageData = dataCacheService.getSessionUsage(query.mode || 'auto');
 
 		const totalSessions = usageData.length;
 		const totalCost = usageData.reduce((sum, session) => sum + session.totalCost, 0);
