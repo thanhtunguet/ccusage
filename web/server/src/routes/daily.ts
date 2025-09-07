@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { loadDailyUsageData } from '../../../../src/data-loader.ts';
 import { createDailyApiResponse } from '../utils/data-formatter.ts';
 import { parseApiQuery } from '../utils/query-parser.ts';
+import { dataCacheService } from '../services/data-cache.ts';
 
 export const dailyRoutes = new Hono();
 
@@ -10,14 +10,14 @@ dailyRoutes.get('/', async (c) => {
 	try {
 		const query = parseApiQuery(c.req.query());
 		
-		const usageData = await loadDailyUsageData({
-			mode: query.mode,
-			instances: query.instances,
-			dateRange: query.dateRange,
-			projectFilter: query.projectFilter,
-			modelFilter: query.modelFilter,
-			sortOrder: query.sortOrder,
-		});
+		// Get data from cache instead of loading from disk
+		const cachedData = dataCacheService.getDailyUsage(query.mode || 'auto');
+		
+		// Apply client-side filtering since cache contains all data
+		let usageData = cachedData;
+		
+		// TODO: Implement client-side filtering for dateRange, projectFilter, modelFilter, sortOrder
+		// For now, return all cached data
 
 		const response = createDailyApiResponse(usageData, query);
 		
@@ -36,12 +36,8 @@ dailyRoutes.get('/summary', async (c) => {
 	try {
 		const query = parseApiQuery(c.req.query());
 		
-		const usageData = await loadDailyUsageData({
-			mode: query.mode,
-			dateRange: query.dateRange,
-			projectFilter: query.projectFilter,
-			modelFilter: query.modelFilter,
-		});
+		// Get data from cache instead of loading from disk
+		const usageData = dataCacheService.getDailyUsage(query.mode || 'auto');
 
 		// Calculate summary statistics
 		const totalDays = usageData.length;

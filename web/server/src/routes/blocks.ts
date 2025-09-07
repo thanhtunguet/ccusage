@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { loadSessionBlockData } from '../../../../src/data-loader.ts';
 import { createBlocksApiResponse } from '../utils/data-formatter.ts';
 import { parseApiQuery } from '../utils/query-parser.ts';
+import { dataCacheService } from '../services/data-cache.ts';
 
 export const blocksRoutes = new Hono();
 
@@ -10,17 +10,23 @@ blocksRoutes.get('/', async (c) => {
 	try {
 		const query = parseApiQuery(c.req.query());
 		
-		const usageData = await loadSessionBlockData({
-			mode: query.mode,
-			instances: query.instances,
-			dateRange: query.dateRange,
-			projectFilter: query.projectFilter,
-			modelFilter: query.modelFilter,
-			sortOrder: query.sortOrder,
-			active: query.active,
-			recent: query.recent,
-			tokenLimit: query.tokenLimit,
-		});
+		// Get data from cache instead of loading from disk
+		let usageData = dataCacheService.getBlocksUsage(query.mode || 'auto');
+		
+		// Apply client-side filtering for active and recent flags
+		if (query.active) {
+			usageData = usageData.filter(block => block.isActive);
+		}
+		
+		if (query.recent) {
+			const threeDaysAgo = new Date();
+			threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+			usageData = usageData.filter(block => 
+				block.startTime >= threeDaysAgo || block.isActive
+			);
+		}
+		
+		// TODO: Implement other filters (dateRange, projectFilter, modelFilter, sortOrder, tokenLimit)
 
 		const response = createBlocksApiResponse(usageData, query);
 		
@@ -39,14 +45,20 @@ blocksRoutes.get('/summary', async (c) => {
 	try {
 		const query = parseApiQuery(c.req.query());
 		
-		const usageData = await loadSessionBlockData({
-			mode: query.mode,
-			dateRange: query.dateRange,
-			projectFilter: query.projectFilter,
-			modelFilter: query.modelFilter,
-			active: query.active,
-			recent: query.recent,
-		});
+		// Get data from cache and apply same filtering as main endpoint
+		let usageData = dataCacheService.getBlocksUsage(query.mode || 'auto');
+		
+		if (query.active) {
+			usageData = usageData.filter(block => block.isActive);
+		}
+		
+		if (query.recent) {
+			const threeDaysAgo = new Date();
+			threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+			usageData = usageData.filter(block => 
+				block.startTime >= threeDaysAgo || block.isActive
+			);
+		}
 
 		const totalBlocks = usageData.length;
 		const totalCost = usageData.reduce((sum, block) => sum + block.costUSD, 0);

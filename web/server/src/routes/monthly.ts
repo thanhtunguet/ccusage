@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { loadMonthlyUsageData } from '../../../../src/data-loader.ts';
 import { createMonthlyApiResponse } from '../utils/data-formatter.ts';
 import { parseApiQuery } from '../utils/query-parser.ts';
+import { dataCacheService } from '../services/data-cache.ts';
 
 export const monthlyRoutes = new Hono();
 
@@ -10,14 +10,8 @@ monthlyRoutes.get('/', async (c) => {
 	try {
 		const query = parseApiQuery(c.req.query());
 		
-		const usageData = await loadMonthlyUsageData({
-			mode: query.mode,
-			instances: query.instances,
-			dateRange: query.dateRange,
-			projectFilter: query.projectFilter,
-			modelFilter: query.modelFilter,
-			sortOrder: query.sortOrder,
-		});
+		// Get data from cache instead of loading from disk
+		const usageData = dataCacheService.getMonthlyUsage(query.mode || 'auto');
 
 		const response = createMonthlyApiResponse(usageData, query);
 		
@@ -36,12 +30,8 @@ monthlyRoutes.get('/summary', async (c) => {
 	try {
 		const query = parseApiQuery(c.req.query());
 		
-		const usageData = await loadMonthlyUsageData({
-			mode: query.mode,
-			dateRange: query.dateRange,
-			projectFilter: query.projectFilter,
-			modelFilter: query.modelFilter,
-		});
+		// Get data from cache instead of loading from disk
+		const usageData = dataCacheService.getMonthlyUsage(query.mode || 'auto');
 
 		const totalMonths = usageData.length;
 		const totalCost = usageData.reduce((sum, month) => sum + month.totalCost, 0);

@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
-import { loadSessionData } from '../../../../src/data-loader.ts';
+import { Hono } from 'hono';
 import { createSessionApiResponse } from '../utils/data-formatter.ts';
 import { parseApiQuery } from '../utils/query-parser.ts';
+import { dataCacheService } from '../services/data-cache.ts';
 
 export const sessionRoutes = new Hono();
 
@@ -10,14 +11,8 @@ sessionRoutes.get('/', async (c) => {
 	try {
 		const query = parseApiQuery(c.req.query());
 		
-		const usageData = await loadSessionData({
-			mode: query.mode,
-			instances: query.instances,
-			dateRange: query.dateRange,
-			projectFilter: query.projectFilter,
-			modelFilter: query.modelFilter,
-			sortOrder: query.sortOrder,
-		});
+		// Get data from cache instead of loading from disk
+		const usageData = dataCacheService.getSessionUsage(query.mode || 'auto');
 
 		const response = createSessionApiResponse(usageData, query);
 		
