@@ -112,6 +112,12 @@ export const sharedArgs = {
 		description: 'Force compact mode for narrow displays (better for screenshots)',
 		default: false,
 	},
+	source: {
+		type: 'enum',
+		description: 'Filter by data source: claude (Claude Code), codex (OpenAI Codex), or all (both sources)',
+		choices: ['claude', 'codex', 'all'] as const,
+		default: 'all' as const,
+	},
 } as const satisfies Args;
 
 /**

@@ -148,6 +148,24 @@ export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export const CONFIG_FILE_NAME = 'ccusage.json';
 
 /**
+ * Default Codex data directory path (~/.codex)
+ * Used as base path for loading OpenAI Codex usage data from JSONL files
+ */
+export const DEFAULT_CODEX_PATH = '.codex';
+
+/**
+ * Codex sessions directory name within the data directory
+ * Contains JSONL files with usage data (flat structure, no project subdirectories)
+ */
+export const CODEX_SESSIONS_DIR_NAME = 'sessions';
+
+/**
+ * Environment variable for specifying multiple data directories (both Claude and Codex)
+ * Supports comma-separated paths for multiple locations
+ */
+export const USAGE_CONFIG_DIR_ENV = 'USAGE_CONFIG_DIR';
+
+/**
  * Default locale for date formatting (en-CA provides YYYY-MM-DD ISO format)
  * Used consistently across the application for date parsing and display
  */

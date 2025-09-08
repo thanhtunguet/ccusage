@@ -10,6 +10,7 @@
 
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { CostMode, SortOrder } from './_types.ts';
+import type { DataPath } from './data-loader.ts';
 import { readFile, stat } from 'node:fs/promises';
 import { Result } from '@praha/byethrow';
 import pLimit from 'p-limit';
@@ -17,6 +18,7 @@ import { identifySessionBlocks } from './_session-blocks.ts';
 import {
 	calculateCostForEntry,
 	createUniqueHash,
+	getAllDataPaths,
 	getEarliestTimestamp,
 	getUsageLimitResetTime,
 	globUsageFiles,
@@ -29,7 +31,8 @@ import { PricingFetcher } from './pricing-fetcher.ts';
  * Configuration for live monitoring
  */
 export type LiveMonitorConfig = {
-	claudePaths: string[];
+	claudePaths?: string[]; // Legacy support
+	dataPaths?: DataPath[]; // New unified approach
 	sessionDurationHours: number;
 	mode: CostMode;
 	order: SortOrder;
@@ -192,7 +195,26 @@ export async function getActiveBlock(
 	config: LiveMonitorConfig,
 ): Promise<SessionBlock | null> {
 	const cutoffTime = new Date(Date.now() - RETENTION_HOURS * 60 * 60 * 1000);
-	const results = await globUsageFiles(config.claudePaths);
+
+	// Get data paths from config or use default discovery
+	let dataPaths: DataPath[];
+	if (config.dataPaths != null) {
+		dataPaths = config.dataPaths;
+	}
+	else if (config.claudePaths != null) {
+		// Legacy support: convert claudePaths to DataPath format
+		dataPaths = config.claudePaths.map(claudePath => ({
+			path: claudePath,
+			source: 'claude' as const,
+			subdirectory: 'projects',
+		}));
+	}
+	else {
+		// Use automatic discovery
+		dataPaths = getAllDataPaths();
+	}
+
+	const results = await globUsageFiles(dataPaths);
 	const allFiles = results.map(r => r.file);
 
 	if (allFiles.length === 0) {

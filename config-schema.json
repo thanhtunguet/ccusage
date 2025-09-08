@@ -104,6 +104,17 @@
 							"description": "Force compact mode for narrow displays (better for screenshots)",
 							"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 							"default": false
+						},
+						"source": {
+							"type": "string",
+							"enum": [
+								"claude",
+								"codex",
+								"all"
+							],
+							"description": "Filter by data source: claude (Claude Code), codex (OpenAI Codex), or all (both sources)",
+							"markdownDescription": "Filter by data source: claude (Claude Code), codex (OpenAI Codex), or all (both sources)",
+							"default": "all"
 						}
 					},
 					"additionalProperties": false,
@@ -208,6 +219,17 @@
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
+								},
+								"source": {
+									"type": "string",
+									"enum": [
+										"claude",
+										"codex",
+										"all"
+									],
+									"description": "Filter by data source: claude (Claude Code), codex (OpenAI Codex), or all (both sources)",
+									"markdownDescription": "Filter by data source: claude (Claude Code), codex (OpenAI Codex), or all (both sources)",
+									"default": "all"
 								},
 								"instances": {
 									"type": "boolean",
@@ -323,6 +345,17 @@
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
+								},
+								"source": {
+									"type": "string",
+									"enum": [
+										"claude",
+										"codex",
+										"all"
+									],
+									"description": "Filter by data source: claude (Claude Code), codex (OpenAI Codex), or all (both sources)",
+									"markdownDescription": "Filter by data source: claude (Claude Code), codex (OpenAI Codex), or all (both sources)",
+									"default": "all"
 								}
 							},
 							"additionalProperties": false
@@ -422,6 +455,17 @@
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
+								},
+								"source": {
+									"type": "string",
+									"enum": [
+										"claude",
+										"codex",
+										"all"
+									],
+									"description": "Filter by data source: claude (Claude Code), codex (OpenAI Codex), or all (both sources)",
+									"markdownDescription": "Filter by data source: claude (Claude Code), codex (OpenAI Codex), or all (both sources)",
+									"default": "all"
 								},
 								"startOfWeek": {
 									"type": "string",
@@ -527,6 +571,17 @@
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
 								},
+								"source": {
+									"type": "string",
+									"enum": [
+										"claude",
+										"codex",
+										"all"
+									],
+									"description": "Filter by data source: claude (Claude Code), codex (OpenAI Codex), or all (both sources)",
+									"markdownDescription": "Filter by data source: claude (Claude Code), codex (OpenAI Codex), or all (both sources)",
+									"default": "all"
+								},
 								"id": {
 									"type": "string",
 									"description": "Load usage data for a specific session ID",
@@ -630,6 +685,17 @@
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
+								},
+								"source": {
+									"type": "string",
+									"enum": [
+										"claude",
+										"codex",
+										"all"
+									],
+									"description": "Filter by data source: claude (Claude Code), codex (OpenAI Codex), or all (both sources)",
+									"markdownDescription": "Filter by data source: claude (Claude Code), codex (OpenAI Codex), or all (both sources)",
+									"default": "all"
 								},
 								"active": {
 									"type": "boolean",

@@ -18,7 +18,7 @@ import type {
 	SortOrder,
 	Version,
 } from './_types.ts';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { toArray } from '@antfu/utils';
@@ -28,7 +28,7 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
-import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_LOCALE, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, CODEX_SESSIONS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_CODEX_PATH, DEFAULT_LOCALE, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	filterByDateRange,
 	formatDate,
@@ -140,6 +140,107 @@ export function getClaudePaths(): string[] {
 }
 
 /**
+ * Get Codex data directories to search for usage data
+ * @returns Array of valid Codex data directory paths
+ */
+export function getCodexPaths(): string[] {
+	const paths = [];
+	const normalizedPaths = new Set<string>();
+
+	// Check if ~/.codex/sessions exists
+	const defaultCodexPath = path.join(USER_HOME_DIR, DEFAULT_CODEX_PATH);
+	const normalizedPath = path.resolve(defaultCodexPath);
+	if (isDirectorySync(normalizedPath)) {
+		const sessionsPath = path.join(normalizedPath, CODEX_SESSIONS_DIR_NAME);
+		if (isDirectorySync(sessionsPath)) {
+			normalizedPaths.add(normalizedPath);
+			paths.push(normalizedPath);
+		}
+	}
+
+	return paths;
+}
+
+/**
+ * Data source type for identifying the origin of usage data
+ */
+export type DataSource = 'claude' | 'codex';
+
+/**
+ * Data path result with source identification
+ */
+export type DataPath = {
+	path: string;
+	source: DataSource;
+	subdirectory: string; // 'projects' for Claude, 'sessions' for Codex
+};
+
+/**
+ * Get all available data directories from both Claude and Codex sources
+ * When USAGE_CONFIG_DIR is set: uses only those paths for Claude sources
+ * When not set: uses default paths for both Claude and Codex
+ * @returns Array of data paths with source identification
+ */
+export function getAllDataPaths(sourceFilter?: 'claude' | 'codex' | 'all'): DataPath[] {
+	const dataPaths: DataPath[] = [];
+	const filter = sourceFilter ?? 'all';
+
+	// Get Claude paths if requested
+	if (filter === 'claude' || filter === 'all') {
+		try {
+			const claudePaths = getClaudePaths();
+			for (const claudePath of claudePaths) {
+				dataPaths.push({
+					path: claudePath,
+					source: 'claude',
+					subdirectory: CLAUDE_PROJECTS_DIR_NAME,
+				});
+			}
+		}
+		catch {
+			// Claude paths not available, continue with Codex
+		}
+	}
+
+	// Get Codex paths if requested
+	if (filter === 'codex' || filter === 'all') {
+		const codexPaths = getCodexPaths();
+		for (const codexPath of codexPaths) {
+			dataPaths.push({
+				path: codexPath,
+				source: 'codex',
+				subdirectory: CODEX_SESSIONS_DIR_NAME,
+			});
+		}
+	}
+
+	if (dataPaths.length === 0) {
+		const availableSources = [];
+		if (filter === 'claude' || filter === 'all') {
+			availableSources.push(
+				`Claude Code:
+- ${path.join(DEFAULT_CLAUDE_CONFIG_PATH, CLAUDE_PROJECTS_DIR_NAME)}
+- ${path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH, CLAUDE_PROJECTS_DIR_NAME)}
+- Or set ${CLAUDE_CONFIG_DIR_ENV} environment variable`,
+			);
+		}
+		if (filter === 'codex' || filter === 'all') {
+			availableSources.push(
+				`OpenAI Codex:
+- ${path.join(USER_HOME_DIR, DEFAULT_CODEX_PATH, CODEX_SESSIONS_DIR_NAME)}`,
+			);
+		}
+
+		throw new Error(
+			`No valid data directories found${filter !== 'all' ? ` for source: ${filter}` : ''}. Please ensure at least one of the following exists:
+${availableSources.join('\n\n')}`.trim(),
+		);
+	}
+
+	return dataPaths;
+}
+
+/**
  * Extract project name from Claude JSONL file path
  * @param jsonlPath - Absolute path to JSONL file
  * @returns Project name extracted from path, or "unknown" if malformed
@@ -208,6 +309,64 @@ export const transcriptMessageSchema = z.object({
  * Type definition for Claude usage data entries from JSONL files
  */
 export type UsageData = z.infer<typeof usageDataSchema>;
+// Codex conversation data schema - simplified structure for file metadata
+export const codexConversationSchema = z.object({
+	id: z.string(),
+	timestamp: isoTimestampSchema,
+	instructions: z.string().optional(),
+	git: z.object({
+		commit_hash: z.string().optional(),
+		branch: z.string().optional(),
+		repository_url: z.string().optional(),
+	}).optional(),
+	record_type: z.string().optional(),
+});
+
+export type CodexConversation = z.infer<typeof codexConversationSchema>;
+
+// Approximate conversion constants for Codex file size to usage
+const BYTES_PER_TOKEN_ESTIMATE = 4; // Rough estimate: 1 token ≈ 4 bytes
+const INPUT_OUTPUT_RATIO = 0.2; // Assume 20% input, 80% output (conversation heavy)
+const DEFAULT_CODEX_MODEL = 'gpt-5'; // Default model for Codex approximation
+
+/**
+ * Convert Codex file size to approximate usage data
+ * This creates a synthetic UsageData object based on file size analysis
+ */
+export function approximateCodexUsage(
+	filePath: string,
+	fileSize: number,
+	timestamp: string,
+	sessionId?: string,
+): UsageData & { fileSize: number } {
+	// Estimate total tokens from file size
+	const estimatedTotalTokens = Math.round(fileSize / BYTES_PER_TOKEN_ESTIMATE);
+
+	// Split into input/output based on ratio
+	const estimatedInputTokens = Math.round(estimatedTotalTokens * INPUT_OUTPUT_RATIO);
+	const estimatedOutputTokens = estimatedTotalTokens - estimatedInputTokens;
+
+	// Extract session ID from filename if not provided
+	const extractedSessionId = sessionId ?? path.basename(filePath, '.jsonl').split('-').pop() ?? 'unknown';
+
+	return {
+		sessionId: sessionIdSchema.parse(extractedSessionId),
+		timestamp: isoTimestampSchema.parse(timestamp),
+		message: {
+			usage: {
+				input_tokens: estimatedInputTokens,
+				output_tokens: estimatedOutputTokens,
+				cache_creation_input_tokens: 0,
+				cache_read_input_tokens: 0,
+			},
+			model: modelNameSchema.parse(DEFAULT_CODEX_MODEL),
+		},
+		// Mark as approximated for debugging/transparency
+		cwd: 'CODEX_APPROXIMATION',
+		// No costUSD - Codex costs are not calculated
+		fileSize, // Include original file size for display
+	};
+}
 
 /**
  * Zod schema for model-specific usage breakdown data
@@ -673,23 +832,30 @@ export function getUsageLimitResetTime(data: UsageData): Date | null {
 export type GlobResult = {
 	file: string;
 	baseDir: string;
+	source: DataSource;
 };
 
 /**
- * Glob files from multiple Claude paths in parallel
- * @param claudePaths - Array of Claude base paths
- * @returns Array of file paths with their base directories
+ * Glob files from multiple data paths in parallel
+ * @param dataPaths - Array of data paths (Claude and Codex)
+ * @returns Array of file paths with their base directories and source info
  */
-export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[]> {
-	const filePromises = claudePaths.map(async (claudePath) => {
-		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-			cwd: claudeDir,
+export async function globUsageFiles(dataPaths?: DataPath[]): Promise<GlobResult[]> {
+	const pathsToSearch = dataPaths ?? getAllDataPaths();
+
+	const filePromises = pathsToSearch.map(async ({ path: dataPath, source, subdirectory }) => {
+		const searchDir = path.join(dataPath, subdirectory);
+
+		// For Codex, search recursively through nested date folders (yyyy/MM/dd)
+		const globPattern = source === 'codex' ? `**/${USAGE_DATA_GLOB_PATTERN}` : USAGE_DATA_GLOB_PATTERN;
+
+		const files = await glob([globPattern], {
+			cwd: searchDir,
 			absolute: true,
 		}).catch(() => []); // Gracefully handle errors for individual paths
 
-		// Map each file to include its base directory
-		return files.map(file => ({ file, baseDir: claudeDir }));
+		// Map each file to include its base directory and source
+		return files.map(file => ({ file, baseDir: searchDir, source }));
 	});
 	return (await Promise.all(filePromises)).flat();
 }
@@ -706,7 +872,9 @@ export type DateFilter = {
  * Configuration options for loading usage data
  */
 export type LoadOptions = {
-	claudePath?: string; // Custom path to Claude data directory
+	claudePath?: string; // Custom path to Claude data directory (legacy, use dataPaths instead)
+	dataPaths?: DataPath[]; // Custom data paths for both Claude and Codex
+	source?: 'claude' | 'codex' | 'all'; // Filter by data source
 	mode?: CostMode; // Cost calculation mode
 	order?: SortOrder; // Sort order for dates
 	offline?: boolean; // Use offline mode for pricing
@@ -729,26 +897,47 @@ export type LoadOptions = {
 export async function loadDailyUsageData(
 	options?: LoadOptions,
 ): Promise<DailyUsage[]> {
-	// Get all Claude paths or use the specific one from options
-	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
+	// Get all data paths (Claude and Codex) or use specific ones from options
+	let dataPaths: DataPath[];
+	if (options?.dataPaths != null) {
+		// Use explicitly provided data paths
+		dataPaths = options.dataPaths;
+	}
+	else if (options?.claudePath != null) {
+		// Legacy support: convert claudePath to DataPath format
+		const claudePathArray = toArray(options.claudePath);
+		dataPaths = claudePathArray.map(claudePath => ({
+			path: claudePath,
+			source: 'claude' as const,
+			subdirectory: CLAUDE_PROJECTS_DIR_NAME,
+		}));
+	}
+	else {
+		// Use all available data sources
+		dataPaths = getAllDataPaths(options?.source);
+	}
 
 	// Collect files from all paths in parallel
-	const allFiles = await globUsageFiles(claudePaths);
-	const fileList = allFiles.map(f => f.file);
+	const allFiles = await globUsageFiles(dataPaths);
+	const filesWithSource = allFiles; // Keep the source information
 
-	if (fileList.length === 0) {
+	if (filesWithSource.length === 0) {
 		return [];
 	}
 
 	// Filter by project if specified
 	const projectFilteredFiles = filterByProject(
-		fileList,
-		filePath => extractProjectFromPath(filePath),
+		filesWithSource,
+		item => extractProjectFromPath(item.file),
 		options?.project,
 	);
 
 	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(projectFilteredFiles);
+	const fileList = projectFilteredFiles.map(f => f.file);
+	const sortedFiles = await sortFilesByTimestamp(fileList);
+
+	// Create a map to keep track of source for each file
+	const fileToSourceMap = new Map(projectFilteredFiles.map(f => [f.file, f.source]));
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -763,6 +952,54 @@ export async function loadDailyUsageData(
 	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string }[] = [];
 
 	for (const file of sortedFiles) {
+		const source = fileToSourceMap.get(file) ?? 'claude';
+
+		if (source === 'codex') {
+			// Handle Codex files: approximate usage from file size
+			try {
+				const stats = await stat(file);
+				const content = await readFile(file, 'utf-8');
+				const lines = content.trim().split('\n').filter(line => line.length > 0);
+
+				// Extract timestamp from the first line (session start)
+				let timestamp = new Date().toISOString();
+				try {
+					const firstLineContent = lines[0];
+					if (firstLineContent != null) {
+						const firstLine = JSON.parse(firstLineContent) as unknown;
+						if (typeof firstLine === 'object' && firstLine != null && 'timestamp' in firstLine && typeof firstLine.timestamp === 'string') {
+							timestamp = firstLine.timestamp;
+						}
+					}
+				}
+				catch {
+					// Use file modification time as fallback
+					timestamp = stats.mtime.toISOString();
+				}
+
+				// Extract session ID from filename
+				const sessionId = path.basename(file, '.jsonl');
+
+				// Create synthetic usage data from file size
+				const data = approximateCodexUsage(file, stats.size, timestamp, sessionId);
+
+				// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
+				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
+				// No cost calculation for Codex - costs are not tracked
+				const cost = 0;
+
+				// For Codex, project is always "OpenAI Codex"
+				const project = 'OpenAI Codex';
+
+				allEntries.push({ data, date, cost, model: data.message.model, project });
+			}
+			catch {
+				// Skip files that can't be processed
+				continue;
+			}
+			continue;
+		}
+
 		const content = await readFile(file, 'utf-8');
 		const lines = content
 			.trim()
@@ -877,11 +1114,28 @@ export async function loadDailyUsageData(
 export async function loadSessionData(
 	options?: LoadOptions,
 ): Promise<SessionUsage[]> {
-	// Get all Claude paths or use the specific one from options
-	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
+	// Get all data paths (Claude and Codex) or use specific ones from options
+	let dataPaths: DataPath[];
+	if (options?.dataPaths != null) {
+		// Use explicitly provided data paths
+		dataPaths = options.dataPaths;
+	}
+	else if (options?.claudePath != null) {
+		// Legacy support: convert claudePath to DataPath format
+		const claudePathArray = toArray(options.claudePath);
+		dataPaths = claudePathArray.map(claudePath => ({
+			path: claudePath,
+			source: 'claude' as const,
+			subdirectory: CLAUDE_PROJECTS_DIR_NAME,
+		}));
+	}
+	else {
+		// Use all available data sources
+		dataPaths = getAllDataPaths(options?.source);
+	}
 
 	// Collect files from all paths with their base directories in parallel
-	const filesWithBase = await globUsageFiles(claudePaths);
+	const filesWithBase = await globUsageFiles(dataPaths);
 
 	if (filesWithBase.length === 0) {
 		return [];
@@ -896,14 +1150,18 @@ export async function loadSessionData(
 
 	// Sort files by timestamp to ensure chronological processing
 	// Create a map for O(1) lookup instead of O(N) find operations
-	const fileToBaseMap = new Map(projectFilteredWithBase.map(f => [f.file, f.baseDir]));
+	const fileToDataMap = new Map(projectFilteredWithBase.map(f => [f.file, { baseDir: f.baseDir, source: f.source }]));
 	const sortedFilesWithBase = await sortFilesByTimestamp(
 		projectFilteredWithBase.map(f => f.file),
 	).then(sortedFiles =>
-		sortedFiles.map(file => ({
-			file,
-			baseDir: fileToBaseMap.get(file) ?? '',
-		})),
+		sortedFiles.map((file) => {
+			const data = fileToDataMap.get(file);
+			return {
+				file,
+				baseDir: data?.baseDir ?? '',
+				source: data?.source ?? 'claude' as const,
+			};
+		}),
 	);
 
 	// Fetch pricing data for cost calculation only when needed
@@ -926,16 +1184,75 @@ export async function loadSessionData(
 		model: string | undefined;
 	}> = [];
 
-	for (const { file, baseDir } of sortedFilesWithBase) {
+	for (const { file, baseDir, source } of sortedFilesWithBase) {
 		// Extract session info from file path using its specific base directory
 		const relativePath = path.relative(baseDir, file);
 		const parts = relativePath.split(path.sep);
 
-		// Session ID is the directory name containing the JSONL file
-		const sessionId = parts[parts.length - 2] ?? 'unknown';
-		// Project path is everything before the session ID
-		const joinedPath = parts.slice(0, -2).join(path.sep);
-		const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
+		let sessionId: string;
+		let projectPath: string;
+
+		if (source === 'codex') {
+			// Codex: flat structure in sessions directory
+			// File is directly in sessions/, filename is the session ID
+			sessionId = path.basename(file, '.jsonl');
+			projectPath = 'OpenAI Codex';
+		}
+		else {
+			// Claude: nested structure projects/{project}/{sessionId}.jsonl
+			// Session ID is the directory name containing the JSONL file
+			sessionId = parts[parts.length - 2] ?? 'unknown';
+			// Project path is everything before the session ID
+			const joinedPath = parts.slice(0, -2).join(path.sep);
+			projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
+		}
+
+		if (source === 'codex') {
+			// Handle Codex files: approximate usage from file size
+			try {
+				const stats = await stat(file);
+				const content = await readFile(file, 'utf-8');
+				const lines = content.trim().split('\n').filter(line => line.length > 0);
+
+				// Extract timestamp from the first line (session start)
+				let timestamp = new Date().toISOString();
+				try {
+					const firstLineContent = lines[0];
+					if (firstLineContent != null) {
+						const firstLine = JSON.parse(firstLineContent) as unknown;
+						if (typeof firstLine === 'object' && firstLine != null && 'timestamp' in firstLine && typeof firstLine.timestamp === 'string') {
+							timestamp = firstLine.timestamp;
+						}
+					}
+				}
+				catch {
+					// Use file modification time as fallback
+					timestamp = stats.mtime.toISOString();
+				}
+
+				// Create synthetic usage data from file size
+				const data = approximateCodexUsage(file, stats.size, timestamp, sessionId);
+
+				const sessionKey = `${projectPath}/${sessionId}`;
+				// No cost calculation for Codex - costs are not tracked
+				const cost = 0;
+
+				allEntries.push({
+					data,
+					sessionKey,
+					sessionId,
+					projectPath,
+					cost,
+					timestamp: data.timestamp,
+					model: data.message.model,
+				});
+			}
+			catch {
+				// Skip files that can't be processed
+				continue;
+			}
+			continue;
+		}
 
 		const content = await readFile(file, 'utf-8');
 		const lines = content
@@ -4497,13 +4814,25 @@ if (import.meta.vitest != null) {
 				'path3/projects/project3/session3/usage.jsonl': 'data3',
 			});
 
-			const paths = [
-				fixture.getPath('path1'),
-				fixture.getPath('path2'),
-				fixture.getPath('path3'),
+			const dataPaths: DataPath[] = [
+				{
+					path: fixture.getPath('path1'),
+					source: 'claude',
+					subdirectory: CLAUDE_PROJECTS_DIR_NAME,
+				},
+				{
+					path: fixture.getPath('path2'),
+					source: 'claude',
+					subdirectory: CLAUDE_PROJECTS_DIR_NAME,
+				},
+				{
+					path: fixture.getPath('path3'),
+					source: 'claude',
+					subdirectory: CLAUDE_PROJECTS_DIR_NAME,
+				},
 			];
 
-			const results = await globUsageFiles(paths);
+			const results = await globUsageFiles(dataPaths);
 
 			expect(results).toHaveLength(3);
 			expect(results.some(r => r.file.includes('project1'))).toBe(true);
@@ -4513,6 +4842,7 @@ if (import.meta.vitest != null) {
 			// Check base directories are included
 			const result1 = results.find(r => r.file.includes('project1'));
 			expect(result1?.baseDir).toContain('path1/projects');
+			expect(result1?.source).toBe('claude');
 		});
 
 		it('should handle errors gracefully and return empty array for failed paths', async () => {
@@ -4520,15 +4850,24 @@ if (import.meta.vitest != null) {
 				'valid/projects/project1/session1/usage.jsonl': 'data1',
 			});
 
-			const paths = [
-				fixture.getPath('valid'),
-				fixture.getPath('nonexistent'), // This path doesn't exist
+			const dataPaths: DataPath[] = [
+				{
+					path: fixture.getPath('valid'),
+					source: 'claude',
+					subdirectory: CLAUDE_PROJECTS_DIR_NAME,
+				},
+				{
+					path: fixture.getPath('nonexistent'), // This path doesn't exist
+					source: 'claude',
+					subdirectory: CLAUDE_PROJECTS_DIR_NAME,
+				},
 			];
 
-			const results = await globUsageFiles(paths);
+			const results = await globUsageFiles(dataPaths);
 
 			expect(results).toHaveLength(1);
 			expect(results.at(0)?.file).toContain('project1');
+			expect(results.at(0)?.source).toBe('claude');
 		});
 
 		it('should return empty array when no files found', async () => {
@@ -4536,8 +4875,14 @@ if (import.meta.vitest != null) {
 				'empty/projects': {}, // Empty directory
 			});
 
-			const paths = [fixture.getPath('empty')];
-			const results = await globUsageFiles(paths);
+			const dataPaths: DataPath[] = [
+				{
+					path: fixture.getPath('empty'),
+					source: 'claude',
+					subdirectory: CLAUDE_PROJECTS_DIR_NAME,
+				},
+			];
+			const results = await globUsageFiles(dataPaths);
 
 			expect(results).toEqual([]);
 		});
@@ -4549,11 +4894,70 @@ if (import.meta.vitest != null) {
 				'path1/projects/project2/session1/usage.jsonl': 'data3',
 			});
 
-			const paths = [fixture.getPath('path1')];
-			const results = await globUsageFiles(paths);
+			const dataPaths: DataPath[] = [
+				{
+					path: fixture.getPath('path1'),
+					source: 'claude',
+					subdirectory: CLAUDE_PROJECTS_DIR_NAME,
+				},
+			];
+			const results = await globUsageFiles(dataPaths);
 
 			expect(results).toHaveLength(3);
 			expect(results.every(r => r.baseDir.includes('path1/projects'))).toBe(true);
+			expect(results.every(r => r.source === 'claude')).toBe(true);
+		});
+
+		it('should support Codex data sources with flat structure', async () => {
+			await using fixture = await createFixture({
+				'codex1/sessions/session1.jsonl': 'codex-data1',
+				'codex1/sessions/session2.jsonl': 'codex-data2',
+			});
+
+			const dataPaths: DataPath[] = [
+				{
+					path: fixture.getPath('codex1'),
+					source: 'codex',
+					subdirectory: CODEX_SESSIONS_DIR_NAME,
+				},
+			];
+			const results = await globUsageFiles(dataPaths);
+
+			expect(results).toHaveLength(2);
+			expect(results.every(r => r.baseDir.includes('codex1/sessions'))).toBe(true);
+			expect(results.every(r => r.source === 'codex')).toBe(true);
+			expect(results.some(r => r.file.includes('session1.jsonl'))).toBe(true);
+			expect(results.some(r => r.file.includes('session2.jsonl'))).toBe(true);
+		});
+
+		it('should support mixed Claude and Codex data sources', async () => {
+			await using fixture = await createFixture({
+				'claude/projects/project1/session1/usage.jsonl': 'claude-data',
+				'codex/sessions/session2.jsonl': 'codex-data',
+			});
+
+			const dataPaths: DataPath[] = [
+				{
+					path: fixture.getPath('claude'),
+					source: 'claude',
+					subdirectory: CLAUDE_PROJECTS_DIR_NAME,
+				},
+				{
+					path: fixture.getPath('codex'),
+					source: 'codex',
+					subdirectory: CODEX_SESSIONS_DIR_NAME,
+				},
+			];
+			const results = await globUsageFiles(dataPaths);
+
+			expect(results).toHaveLength(2);
+			const claudeResult = results.find(r => r.source === 'claude');
+			const codexResult = results.find(r => r.source === 'codex');
+
+			expect(claudeResult?.file).toContain('project1');
+			expect(claudeResult?.baseDir).toContain('claude/projects');
+			expect(codexResult?.file).toContain('session2.jsonl');
+			expect(codexResult?.baseDir).toContain('codex/sessions');
 		});
 	});
 
