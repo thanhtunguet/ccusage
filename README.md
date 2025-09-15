@@ -127,16 +127,6 @@ Check out [ccusage: The Claude Code cost scorecard that went viral](https://www.
     </a>
 </p>
 
-## Claude Code Resources
-
-[`ClaudeLog`](https://claudelog.com) &nbsp; by &nbsp; [InventorBlack](https://www.reddit.com/user/inventor_black/)
-A comprehensive knowledge base with detailed breakdowns of advanced topics, including:
-
-- Advanced [mechanics](https://claudelog.com/mechanics/you-are-the-main-thread/) and [CLAUDE.md best practices](https://claudelog.com/mechanics/claude-md-supremacy).
-- Practical technique guides for [plan mode](https://claudelog.com/mechanics/plan-mode), [ultrathink](https://claudelog.com/faqs/what-is-ultrathink/), and [sub-agents](https://claudelog.com/mechanics/task-agent-tools/).
-- Concepts like [agent-first design](https://claudelog.com/mechanics/agent-first-design/), [agent engineering](https://claudelog.com/mechanics/agent-engineering/), and [humanizing agents](https://claudelog.com/mechanics/humanising-agents/).
-- [Configuration guides](https://claudelog.com/configuration).
-
 ## Star History
 
 <a href="https://www.star-history.com/#ryoppippi/ccusage&Date">
